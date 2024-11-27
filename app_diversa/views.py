@@ -1,7 +1,6 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,7 +8,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth import authenticate
 from .models import Survey, Question, Option
-from .serializers import UserSerializer, SurveySerializer, QuestionSerializer, OptionSerializer
+from .serializers import UserSerializer, SurveySerializer, QuestionSerializer, OptionSerializer, ResponseSerializer
 
 class WelcomeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -80,3 +79,13 @@ class QuestionViewSet(viewsets.ModelViewSet):
 class OptionViewSet(viewsets.ModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
+
+class SubmitResponseView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ResponseSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Respuesta enviada correctamente."})
+        return Response(serializer.errors, status=400)
