@@ -66,6 +66,9 @@ DATABASES = {
     }
 }
 
+
+AUTH_USER_MODEL = 'app_diversa.CustomUser'
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
