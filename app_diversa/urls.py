@@ -1,6 +1,10 @@
 from django.urls import path, include
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 from rest_framework.routers import DefaultRouter
-from .views import welcome_view, RegisterView, LoginView, SurveyViewSet, QuestionViewSet, OptionViewSet
+from .views import RegisterView, LoginView, WelcomeView, SurveyViewSet, QuestionViewSet, OptionViewSet, CustomTokenObtainPairView
 
 # Configuración del router
 router = DefaultRouter()
@@ -12,6 +16,7 @@ router.register('options', OptionViewSet, basename='option')
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
-    path('welcome/', welcome_view, name='welcome'),
+    path('welcome/', WelcomeView.as_view(), name='welcome'),
+    path('token/', CustomTokenObtainPairView.as_view(), name='custom_token_obtain_pair'),
     path('', include(router.urls)),
 ]
