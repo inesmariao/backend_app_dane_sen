@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Survey, Question, Option, Module, CustomUser
+from .models import Survey, Question, Option, Module
+from users.models import CustomUser
 
 # CustomUser Admin
 @admin.register(CustomUser)

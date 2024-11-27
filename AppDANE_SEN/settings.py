@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
+    'users',
     'app_diversa',
 ]
 
@@ -68,7 +69,7 @@ DATABASES = {
 }
 
 
-AUTH_USER_MODEL = 'app_diversa.CustomUser'
+AUTH_USER_MODEL = 'users.CustomUser'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
