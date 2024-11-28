@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'users',
     'app_diversa',
+    'drf_yasg',
 ]
 
 # Middleware

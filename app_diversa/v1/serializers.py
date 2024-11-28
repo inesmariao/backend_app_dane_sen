@@ -4,8 +4,6 @@ from ..models import Survey, Question, Option, Response
 
 User = get_user_model()
 
-
-
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
