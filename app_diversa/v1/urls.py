@@ -13,7 +13,7 @@ urlpatterns = [
     # Rutas individuales (APIView o Function-based Views)
     path('welcome/', WelcomeView.as_view(), name='v1-welcome'),
     path('submit-response/', SubmitResponseView.as_view(), name='v1-submit-response'),
-    
+
     # Rutas generadas automáticamente por el router
     path('', include(router.urls)),
 ]

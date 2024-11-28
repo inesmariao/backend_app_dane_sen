@@ -1,8 +1,5 @@
-from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from ..models import Survey, Question, Option, Response
-
-User = get_user_model()
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,7 +8,7 @@ class OptionSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, read_only=True)
-    
+
     # Validar los datos adicionales desde `validation_rules`
     def validate(self, data):
         if data.get('min_value') and not isinstance(data['min_value'], int):
