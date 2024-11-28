@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Survey, Question, Option
+from ..models import Survey, Question, Option
 from .serializers import SurveySerializer, QuestionSerializer, OptionSerializer, ResponseSerializer
 
 class WelcomeView(APIView):

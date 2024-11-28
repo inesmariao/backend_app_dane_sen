@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser
+from ..models import CustomUser
 
 class UserSerializer(serializers.ModelSerializer):
     identifier = serializers.CharField(write_only=True, required=True)  # Puede ser email, username o phone_number

@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import authenticate
 from .serializers import UserSerializer
-from .models import CustomUser
+from ..models import CustomUser
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
