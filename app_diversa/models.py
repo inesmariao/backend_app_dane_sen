@@ -1,21 +1,7 @@
 from django.db import models
+from app_geo.models import Country, Department, Municipality
 from django.conf import settings
-
-class Module(models.Model):
-    name = models.CharField(
-        max_length=100,
-        help_text="Nombre del módulo. Máximo 100 caracteres."
-    )
-    description = models.TextField(
-        help_text="Descripción detallada del módulo."
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Fecha y hora en que se creó el módulo."
-    )
-
-    def __str__(self):
-        return self.name
+from django.core.exceptions import ValidationError
 
 class Survey(models.Model):
     name = models.CharField(
@@ -34,6 +20,24 @@ class Survey(models.Model):
     def __str__(self):
         return self.name
 
+class Chapter(models.Model):
+    survey = models.ForeignKey(
+        Survey, on_delete=models.CASCADE, related_name='chapters', help_text="Encuesta a la que pertenece este capítulo."
+    )
+    name = models.CharField(
+        max_length=255, help_text="Nombre del capítulo."
+    )
+    description = models.TextField(
+        blank=True, null=True, help_text="Descripción opcional del capítulo."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, help_text="Fecha de creación del capítulo."
+    )
+
+    def __str__(self):
+        return self.name
+
+
 class Question(models.Model):
     QUESTION_TYPES = [
         ('open', 'Pregunta Abierta'),
@@ -49,9 +53,27 @@ class Question(models.Model):
         related_name='questions',
         help_text="Encuesta a la que pertenece esta pregunta."
     )
+    chapter = models.ForeignKey(
+        'Chapter', on_delete=models.SET_NULL, null=True, blank=True, related_name='questions',
+        help_text="Capítulo al que pertenece esta pregunta. Puede ser nulo si no está asociado a un capítulo."
+    )
     text = models.CharField(
         max_length=255,
         help_text="Texto de la pregunta. Máximo 255 caracteres."
+    )
+    instruction = models.TextField(
+        blank=True, null=True,
+        help_text="Instrucción para el usuario sobre cómo responder la pregunta. Opcional."
+    )
+    is_geographic = models.BooleanField(
+        default=False,
+        help_text="Indica si la pregunta requiere selección geográfica."
+    )
+    geography_type = models.CharField(
+        max_length=20,
+        choices=[('COUNTRY', 'País'), ('DEPARTMENT', 'Departamento'), ('MUNICIPALITY', 'Municipio')],
+        blank=True, null=True,
+        help_text="Especifica el nivel geográfico (país, departamento o municipio)."
     )
     question_type = models.CharField(
         max_length=10,
@@ -79,6 +101,13 @@ class Question(models.Model):
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la pregunta."
     )
+    
+    def clean(self):
+        # Si la pregunta está asociada a un capítulo
+        if self.chapter and self.chapter.survey != self.survey:
+            raise ValidationError("El capítulo seleccionado no pertenece a la encuesta asociada a esta pregunta.")
+
+        super().clean()
 
     def __str__(self):
         return self.text
@@ -90,6 +119,12 @@ class Option(models.Model):
         related_name='options',
         help_text="Pregunta a la que pertenece esta opción."
     )
+    option_type = models.CharField(
+        max_length=20,
+        choices=[('COUNTRY', 'País'), ('DEPARTMENT', 'Departamento'), ('MUNICIPALITY', 'Municipio')],
+        blank=True, null=True,
+        help_text="Especifica el tipo de esta opción."
+    )
     text = models.CharField(
         max_length=255,
         help_text="Texto de la opción. Máximo 255 caracteres."
@@ -97,6 +132,10 @@ class Option(models.Model):
     is_other = models.BooleanField(
         default=False,
         help_text="Indica si esta opción representa la respuesta 'Otro'."
+    )
+    note = models.TextField(
+        blank=True, null=True,
+        help_text="Nota aclaratoria para esta opción. Opcional."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -119,6 +158,24 @@ class Response(models.Model):
         on_delete=models.CASCADE,
         related_name='responses',
         help_text="Pregunta a la que corresponde esta respuesta."
+    )
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        help_text="País seleccionado."
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        help_text="Departamento seleccionado."
+    )
+    municipality = models.ForeignKey(
+        Municipality,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        help_text="Municipio seleccionado."
     )
     response_text = models.TextField(
         null=True, blank=True,
@@ -159,5 +216,39 @@ class Response(models.Model):
             if not self.option_selected:
                 raise ValidationError("Debe seleccionar una opción para una pregunta cerrada.")
 
+        if self.country and (self.department or self.municipality):
+            raise ValidationError("No se puede asignar un país junto con un departamento o municipio.")
+
+        if not self.country and (not self.department or not self.municipality):
+            raise ValidationError("Debe proporcionar un departamento y municipio si no se especifica un país.")
+
         super().clean()
+
+class SurveyText(models.Model):
+    survey = models.ForeignKey(
+        Survey,
+        on_delete=models.CASCADE,
+        related_name='texts',
+        help_text="Survey to which this text belongs."
+    )
+    title = models.CharField(
+        max_length=255,
+        help_text="Title of the survey text."
+    )
+    description = models.TextField(
+        blank=True, null=True,
+        help_text="Description of the survey text."
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Indicates if this text is active."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Date and time when the text was created."
+    )
+
+    def __str__(self):
+        return self.title
+
 

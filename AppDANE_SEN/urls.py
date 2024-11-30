@@ -3,6 +3,7 @@ from django.urls import path, include, re_path
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
+from rest_framework.permissions import AllowAny
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -23,6 +24,9 @@ urlpatterns = [
 
     # Versionamiento de la API para app_diversa
     path('app_diversa/', include('app_diversa.urls')),
+
+    # Gestión de Países, Departamentos y Municipios
+    path('geo/', include('app_geo.urls')),
 
     # Versionamiento de la API para users
     path('users/', include('users.urls')),

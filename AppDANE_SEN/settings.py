@@ -22,7 +22,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'users',
     'app_diversa',
+    'app_geo',
     'drf_yasg',
+    'django_extensions',
 ]
 
 # Middleware
@@ -66,6 +68,9 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
         'PORT': config('DB_PORT'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 

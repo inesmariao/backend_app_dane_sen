@@ -8,7 +8,7 @@ class CustomUserManager(BaseUserManager):
 
     Proporciona métodos para crear usuarios estándar y superusuarios.
     """
-    def create_user(self, identifier=None, password=None, **extra_fields):
+    def create_user(self, email=None, username=None, phone_number=None, password=None, **extra_fields):
         """
         Crea un usuario estándar.
 
@@ -23,15 +23,15 @@ class CustomUserManager(BaseUserManager):
         Returns:
             CustomUser: Instancia del usuario creado.
         """
-        if not identifier:
+        if not email and not username and not phone_number:
             raise ValueError("Debe proporcionar un email, username o número de celular para registrar al usuario.")
 
-        if "@" in identifier:
-            extra_fields['email'] = self.normalize_email(identifier)
-        elif identifier.isdigit():
-            extra_fields['phone_number'] = identifier
-        else:
-            extra_fields['username'] = identifier
+        if email:
+            extra_fields['email'] = self.normalize_email(email)
+        if username:
+            extra_fields['username'] = username
+        if phone_number:
+            extra_fields['phone_number'] = phone_number
 
         user = self.model(**extra_fields)
         user.set_password(password)
@@ -103,7 +103,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['username', 'phone_number']
 
     objects = CustomUserManager()
 

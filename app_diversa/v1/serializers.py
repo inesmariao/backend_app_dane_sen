@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from ..models import Survey, Question, Option, Response
+from ..models import Survey, Question, Option, Response, Chapter, SurveyText
+from app_geo.serializers import CountrySerializer, DepartmentSerializer, MunicipalitySerializer
+from app_geo.models import Country, Department, Municipality
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,7 +9,9 @@ class OptionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class QuestionSerializer(serializers.ModelSerializer):
-    options = OptionSerializer(many=True, read_only=True)
+    options = OptionSerializer(many=True, required=False)
+    chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all(), required=False)
+    geography_options = serializers.SerializerMethodField()
 
     # Validar los datos adicionales desde `validation_rules`
     def validate(self, data):
@@ -19,29 +23,128 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = '__all__'
+        fields = [
+            'id', 'text', 'is_geographic', 'geography_type',
+            'options', 'chapter', 'geography_options',
+            'created_at', 'updated_at'
+        ]
+
+    def get_geography_options(self, obj):
+        if obj.is_geographic:
+            if obj.geography_type == 'COUNTRY':
+                return CountrySerializer(Country.objects.all(), many=True).data
+            elif obj.geography_type == 'DEPARTMENT':
+                return MunicipalitySerializer(Department.objects.all(), many=True).data
+            elif obj.geography_type == 'MUNICIPALITY':
+                return MunicipalitySerializer(Municipality.objects.all(), many=True).data
+        return None
+
+    def create(self, validated_data):
+        options_data = validated_data.pop('options', [])
+        question = Question.objects.create(**validated_data)
+
+        for option_data in options_data:
+            Option.objects.create(question=question, **option_data)
+
+        return question
+
+    def update(self, instance, validated_data):
+        options_data = validated_data.pop('options', [])
+        instance.text = validated_data.get('text', instance.text)
+        instance.question_type = validated_data.get('question_type', instance.question_type)
+        instance.save()
+
+        # Actualizar o crear opciones asociadas
+        for option_data in options_data:
+            option_id = option_data.get('id')
+            if option_id:
+                option = Option.objects.get(id=option_id, question=instance)
+                for attr, value in option_data.items():
+                    setattr(option, attr, value)
+                option.save()
+            else:
+                Option.objects.create(question=instance, **option_data)
+
+        return instance
+
+class ChapterSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Chapter
+        fields = ['id', 'name', 'description', 'survey', 'questions', 'created_at']
+
+class SurveyTextSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyText
+        fields = ['id', 'survey', 'title', 'description', 'is_active', 'created_at']
 
 class SurveySerializer(serializers.ModelSerializer):
+    chapters = ChapterSerializer(many=True, required=False)
     questions = QuestionSerializer(many=True, required=False)
+    texts = SurveyTextSerializer(many=True, required=False)
 
     class Meta:
         model = Survey
-        fields = '__all__'
+        fields = ['id', 'name', 'description', 'chapters', 'questions', 'texts', 'created_at']
 
     def create(self, validated_data):
+        chapters_data = validated_data.pop('chapters', [])
         questions_data = validated_data.pop('questions', [])
+        texts_data = validated_data.pop('texts', [])
         survey = Survey.objects.create(**validated_data)
+
+        # Crear capítulos asociados
+        for chapter_data in chapters_data:
+            Chapter.objects.create(survey=survey, **chapter_data)
+
+        # Crear preguntas asociadas
         for question_data in questions_data:
             Question.objects.create(survey=survey, **question_data)
+
+        # Crear textos asociados
+        for text_data in texts_data:
+            SurveyText.objects.create(survey=survey, **text_data)
+
         return survey
+
+    def validate(self, data):
+        chapters = data.get('chapters', [])
+        questions = data.get('questions', [])
+
+        # Validar que las preguntas no pertenezcan a capítulos inexistentes
+        for question in questions:
+            if question.get('chapter') and question['chapter'] not in [chapter['id'] for chapter in chapters]:
+                raise serializers.ValidationError("Las preguntas deben pertenecer a capítulos existentes en la encuesta.")
+
+        return data
+    
+    def update(self, instance, validated_data):
+        chapters_data = validated_data.pop('chapters', [])
+        instance.name = validated_data.get('name', instance.name)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        # Actualizar o crear capítulos
+        for chapter_data in chapters_data:
+            chapter_id = chapter_data.get('id')
+            if chapter_id:
+                chapter = Chapter.objects.get(id=chapter_id, survey=instance)
+                for attr, value in chapter_data.items():
+                    setattr(chapter, attr, value)
+                chapter.save()
+            else:
+                Chapter.objects.create(survey=instance, **chapter_data)
+
+        return instance
 
 class ResponseSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     answer = serializers.CharField()
-    
+
     class Meta:
         model = Response
-        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected']
+        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'country', 'department', 'municipality']
         read_only_fields = ['user', 'response_text', 'response_number', 'option_selected']
 
     def validate(self, data):
@@ -95,3 +198,5 @@ class ResponseSerializer(serializers.Serializer):
             response_number=validated_data.get('response_number'),
             option_selected=None  # Para futuras preguntas cerradas
         )
+
+
