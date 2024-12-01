@@ -8,6 +8,10 @@ class CustomUserManager(BaseUserManager):
 
     Proporciona métodos para crear usuarios estándar y superusuarios.
     """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
     def create_user(self, identifier=None, password=None, **extra_fields):
         """
         Crea un usuario estándar.
@@ -98,6 +102,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         default=False,
         help_text="Indica si el usuario tiene acceso al panel de administración."
     )
+    is_deleted = models.BooleanField(
+        default=False, help_text="Indica si el usuario fue eliminado de forma lógica."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en la que se creó el usuario."
@@ -120,3 +127,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         if self.username:
             return self.username
         return str(self.phone_number)
+    
+    # Sobrescribir el método delete
+    def delete(self, using=None, keep_parents=False):
+        """
+        Elimina lógicamente al usuario marcando 'is_deleted' como True
+        y desactivándolo ('is_active' como False).
+        """
+        self.is_deleted = True
+        self.is_active = False  # Evita que el usuario pueda autenticarse
+        self.save()

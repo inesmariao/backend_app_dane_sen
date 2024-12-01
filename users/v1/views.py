@@ -1,6 +1,7 @@
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response as DRFResponse
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -134,3 +135,66 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+class UserViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para usuarios.
+    """
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        """
+        Lista todos los usuarios.
+        """
+        # Excluir eliminados
+        queryset = self.queryset.filter(is_deleted=False)
+        serializer = self.serializer_class(queryset, many=True)
+        return DRFResponse(serializer.data)
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        """
+        Obtiene un usuario específico por su ID.
+        """
+        try:
+            user = self.queryset.filter(is_deleted=False).get(pk=pk)
+            serializer = self.serializer_class(user)
+            return DRFResponse(serializer.data)
+        except CustomUser.DoesNotExist:
+            return DRFResponse({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Crea un nuevo usuario.
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            return DRFResponse(serializer.data, status=status.HTTP_201_CREATED)
+        return DRFResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, pk=None, *args, **kwargs):
+        """
+        Actualiza un usuario existente.
+        """
+        try:
+            user = self.queryset.get(pk=pk)
+            serializer = self.serializer_class(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return DRFResponse(serializer.data)
+            return DRFResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except CustomUser.DoesNotExist:
+            return DRFResponse({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+    def destroy(self, request, pk=None, *args, **kwargs):
+        """
+        Elimina un usuario de manera lógica.
+        """
+        try:
+            user = self.queryset.get(pk=pk)
+            user.delete()  # Usa el método sobrescrito para eliminar lógicamente
+            return DRFResponse({"message": "Usuario eliminado exitosamente."}, status=status.HTTP_204_NO_CONTENT)
+        except CustomUser.DoesNotExist:
+            return DRFResponse({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)

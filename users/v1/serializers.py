@@ -45,13 +45,13 @@ class UserSerializer(serializers.ModelSerializer):
             serializers.ValidationError: Si el identificador ya está registrado.
         """
         if '@' in value:  # Verifica email
-            if CustomUser.objects.filter(email=value).exists():
+            if CustomUser.objects.filter(email=value, is_deleted=False).exists():
                 raise serializers.ValidationError("El email ya está registrado.")
         elif value.isdigit():  # Verifica número de celular
-            if CustomUser.objects.filter(phone_number=value).exists():
+            if CustomUser.objects.filter(phone_number=value, is_deleted=False).exists():
                 raise serializers.ValidationError("El número de celular ya está registrado.")
         else:  # Verifica username
-            if CustomUser.objects.filter(username=value).exists():
+            if CustomUser.objects.filter(username=value, is_deleted=False).exists():
                 raise serializers.ValidationError("El nombre de usuario ya está registrado.")
         return value
 
