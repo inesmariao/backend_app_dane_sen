@@ -27,15 +27,21 @@ class CustomUserManager(BaseUserManager):
         Returns:
             CustomUser: Instancia del usuario creado.
         """
+
         if not identifier:
             raise ValueError("Se debe proporcionar un identificador (email, username o número de celular).")
 
+        # Manejar el identificador según su tipo
         if '@' in identifier:  # Caso: Email
             extra_fields['email'] = self.normalize_email(identifier)
         elif identifier.isdigit():  # Caso: Número de celular
             extra_fields['phone_number'] = identifier
         else:  # Caso: Username
             extra_fields['username'] = identifier
+
+        # Asegurar de que al menos un identificador se haya almacenado
+        if not any([extra_fields.get('email'), extra_fields.get('phone_number'), extra_fields.get('username')]):
+            raise ValueError("No se pudo determinar el identificador (email, username o número de celular).")
 
         user = self.model(**extra_fields)
         user.set_password(password)

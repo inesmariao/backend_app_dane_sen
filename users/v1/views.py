@@ -9,6 +9,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import UserSerializer
 from ..models import CustomUser
+from django.db.models import Q
 
 class RegisterView(APIView):
     """
@@ -102,20 +103,19 @@ class LoginView(APIView):
         identifier = request.data.get('identifier')
         password = request.data.get('password')
 
-        if "@" in identifier:  # Login con email
-            user = CustomUser.objects.filter(email=identifier).first()
-        elif identifier.isdigit():  # Login con número de teléfono
-            user = CustomUser.objects.filter(phone_number=identifier).first()
-        else:  # Login con username
-            user = CustomUser.objects.filter(username=identifier).first()
+        user = CustomUser.objects.filter(
+            Q(email=identifier) | Q(phone_number=identifier) | Q(username=identifier),
+            is_deleted=False
+        ).first()
 
-        # Verifica contraseña para todos los casos
+        # Verificar contraseña para todos los casos
         if user and not user.check_password(password):
             user = None
 
         if not user:
             return DRFResponse({"error": "Identificador o contraseña incorrectos."}, status=400)
 
+        # Generar tokens JWT
         refresh = RefreshToken.for_user(user)
 
         return DRFResponse({
