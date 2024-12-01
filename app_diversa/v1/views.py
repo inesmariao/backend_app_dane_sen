@@ -1,13 +1,17 @@
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from rest_framework.response import Response as DRFResponse  # Alias más descriptivo
+from rest_framework.response import Response as DRFResponse
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import Survey, Question, Option, Chapter, SurveyText, Response as ModelResponse  # Alias descriptivo
+from ..models import Survey, Question, Option, Chapter, SurveyText, Response as ModelResponse
 from .serializers import SurveySerializer, QuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
 from app_geo.models import Country, Department, Municipality
 from django.shortcuts import get_object_or_404
+from rest_framework.decorators import action
+import tablib
+from reportlab.pdfgen import canvas
+from django.http import HttpResponse
 
 class WelcomeView(APIView):
     """
@@ -170,12 +174,12 @@ class SaveGeographicResponseView(APIView):
         if not question_id:
             return DRFResponse({"error": "El campo 'question_id' es obligatorio."}, status=400)
 
-        # Extraer datos de respuesta
-        country_id = data.get("country_id")
-        department_code = data.get("department_code")
-        municipality_code = data.get("municipality_code")
-
         try:
+            # Extraer datos de respuesta
+            country_id = data.get("country_id")
+            department_code = data.get("department_code")
+            municipality_code = data.get("municipality_code")
+
             if country_id == "COLOMBIA":
                 # Si es Colombia, obtener departamento y municipio
                 department = get_object_or_404(Department, code=department_code)
@@ -245,3 +249,39 @@ class ResponseViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Crea una nueva respuesta.")
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+    
+    @action(detail=False, methods=['get'], url_path='export/(?P<format>[^/.]+)')
+    def export(self, request, format=None):
+        responses = self.queryset.select_related('user', 'question')
+        data = tablib.Dataset()
+        data.headers = ['ID', 'Usuario', 'Pregunta', 'Respuesta', 'Fecha']
+
+        for response in responses:
+            data.append([
+                response.id,
+                response.user.username,
+                response.question.text,
+                response.response_text or response.response_number,
+                response.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ])
+
+        if format == 'csv':
+            response = HttpResponse(data.export('csv'), content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="responses.csv"'
+        elif format == 'xls':
+            response = HttpResponse(data.export('xls'), content_type='application/vnd.ms-excel')
+            response['Content-Disposition'] = 'attachment; filename="responses.xls"'
+        elif format == 'pdf':
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="responses.pdf"'
+            p = canvas.Canvas(response)
+            y = 800
+            for row in data.dict:
+                p.drawString(100, y, f"{row['ID']} - {row['Usuario']} - {row['Pregunta']} - {row['Respuesta']} - {row['Fecha']}")
+                y -= 20
+            p.showPage()
+            p.save()
+        else:
+            return DRFResponse({"error": "Formato no soportado."}, status=400)
+
+        return response

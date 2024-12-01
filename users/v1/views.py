@@ -1,5 +1,5 @@
 from rest_framework.views import APIView
-from rest_framework.response import Response
+from rest_framework.response import Response as DRFResponse
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -47,7 +47,7 @@ class RegisterView(APIView):
 
         refresh = RefreshToken.for_user(user)
 
-        return Response({
+        return DRFResponse({
             "user": {
                 "email": user.email,
                 "username": user.username,
@@ -113,11 +113,11 @@ class LoginView(APIView):
             user = None
 
         if not user:
-            return Response({"error": "Identificador o contraseña incorrectos."}, status=400)
+            return DRFResponse({"error": "Identificador o contraseña incorrectos."}, status=400)
 
         refresh = RefreshToken.for_user(user)
 
-        return Response({
+        return DRFResponse({
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh),
         })

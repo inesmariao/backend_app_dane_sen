@@ -8,7 +8,7 @@ class CustomUserManager(BaseUserManager):
 
     Proporciona métodos para crear usuarios estándar y superusuarios.
     """
-    def create_user(self, email=None, username=None, phone_number=None, password=None, **extra_fields):
+    def create_user(self, identifier=None, password=None, **extra_fields):
         """
         Crea un usuario estándar.
 
@@ -23,22 +23,22 @@ class CustomUserManager(BaseUserManager):
         Returns:
             CustomUser: Instancia del usuario creado.
         """
-        if not email and not username and not phone_number:
-            raise ValueError("Debe proporcionar un email, username o número de celular para registrar al usuario.")
+        if not identifier:
+            raise ValueError("Se debe proporcionar un identificador (email, username o número de celular).")
 
-        if email:
-            extra_fields['email'] = self.normalize_email(email)
-        if username:
-            extra_fields['username'] = username
-        if phone_number:
-            extra_fields['phone_number'] = phone_number
+        if '@' in identifier:  # Caso: Email
+            extra_fields['email'] = self.normalize_email(identifier)
+        elif identifier.isdigit():  # Caso: Número de celular
+            extra_fields['phone_number'] = identifier
+        else:  # Caso: Username
+            extra_fields['username'] = identifier
 
         user = self.model(**extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email=None, username=None, phone_number=None, password=None, **extra_fields):
+    def create_superuser(self, email, password=None, **extra_fields):
         """
         Crea un superusuario con privilegios administrativos.
 
@@ -57,8 +57,9 @@ class CustomUserManager(BaseUserManager):
 
         if not email:
             raise ValueError("Los superusuarios deben tener un email.")
+        extra_fields['email'] = self.normalize_email(email)
 
-        return self.create_user(email=email, username=username, phone_number=phone_number, password=password, **extra_fields)
+        return self.create_user(identifier=email, password=password, **extra_fields)
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -102,10 +103,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         help_text="Fecha y hora en la que se creó el usuario."
     )
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'phone_number']
-
     objects = CustomUserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
 
     def __str__(self):
         """

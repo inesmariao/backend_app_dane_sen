@@ -73,11 +73,13 @@ class UserSerializer(serializers.ModelSerializer):
         identifier = validated_data.pop('identifier')
         password = validated_data.pop('password')
 
+        user_data = {}
         if '@' in identifier:  # Caso: Email
-            validated_data['email'] = identifier
+            user_data['email'] = identifier
         elif identifier.isdigit():  # Caso: Número de celular
-            validated_data['phone_number'] = identifier
+            user_data['phone_number'] = identifier
         else:  # Caso: Username
-            validated_data['username'] = identifier
+            user_data['username'] = identifier
 
-        return CustomUser.objects.create_user(identifier=identifier, password=password, **validated_data)
+        user = CustomUser.objects.create_user(identifier=identifier, password=password, **user_data)
+        return user
