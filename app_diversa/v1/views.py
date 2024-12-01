@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response as DRFResponse
 from rest_framework.permissions import IsAuthenticated
@@ -31,8 +31,9 @@ class SurveyViewSet(viewsets.ModelViewSet):
     """
     CRUD para encuestas (surveys).
     """
-    queryset = Survey.objects.all()
+    queryset = Survey.objects.all().order_by('-created_at')
     serializer_class = SurveySerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(operation_description="Lista de todas las encuestas.")
     def list(self, request, *args, **kwargs):
@@ -53,6 +54,12 @@ class SurveyViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Elimina una encuesta específica.")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        """
+        Listar todas las encuestas disponibles.
+        """
+        return super().list(request, *args, **kwargs)
 
 class ChapterViewSet(viewsets.ModelViewSet):
     """
@@ -249,7 +256,7 @@ class ResponseViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Crea una nueva respuesta.")
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
-    
+
     @action(detail=False, methods=['get'], url_path='export/(?P<format>[^/.]+)')
     def export(self, request, format=None):
         responses = self.queryset.select_related('user', 'question')
