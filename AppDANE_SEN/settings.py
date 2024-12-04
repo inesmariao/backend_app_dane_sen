@@ -25,12 +25,14 @@ INSTALLED_APPS = [
     'app_geo',
     'drf_yasg',
     'django_extensions',
+    'corsheaders',
 ]
 
 # Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -81,6 +83,17 @@ AUTHENTICATION_BACKENDS = [
     'users.authentication.CustomAuthBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Dominio del frontend
+]
+
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-csrftoken',
+]
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
