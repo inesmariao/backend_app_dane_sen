@@ -91,7 +91,13 @@ class LoginView(APIView):
                 examples={
                     "application/json": {
                         "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                        "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                        "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                        "user": {
+                            "id": 1,
+                            "username": "example_user",
+                            "email": "example@example.com",
+                            "phone_number": "1234567890"
+                        }
                     }
                 }
             ),
@@ -121,6 +127,12 @@ class LoginView(APIView):
         return DRFResponse({
             "access_token": str(refresh.access_token),
             "refresh_token": str(refresh),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "phone_number": user.phone_number,
+            }
         })
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
