@@ -16,6 +16,9 @@ class Survey(models.Model):
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la encuesta."
     )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó la encuesta."
+    )
 
     def __str__(self):
         return self.name
@@ -32,6 +35,9 @@ class Chapter(models.Model):
     )
     created_at = models.DateTimeField(
         auto_now_add=True, help_text="Fecha de creación del capítulo."
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó el capítulo."
     )
 
     def __str__(self):
@@ -101,6 +107,9 @@ class Question(models.Model):
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la pregunta."
     )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó la pregunta."
+    )
     
     def clean(self):
         # Si la pregunta está asociada a un capítulo
@@ -140,6 +149,9 @@ class Option(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la opción."
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó la opción."
     )
 
 
@@ -195,6 +207,9 @@ class Response(models.Model):
         auto_now_add=True,
         help_text="Fecha y hora en que se registró la respuesta."
     )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó la respuesta."
+    )
 
     def __str__(self):
         return f"Respuesta de {self.user} a {self.question.text}"
@@ -246,6 +261,9 @@ class SurveyText(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Date and time when the text was created."
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="Fecha y hora en que se actualizó el texto."
     )
 
     def __str__(self):

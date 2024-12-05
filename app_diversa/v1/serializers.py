@@ -72,12 +72,12 @@ class ChapterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Chapter
-        fields = ['id', 'name', 'description', 'survey', 'questions', 'created_at']
+        fields = ['id', 'name', 'description', 'survey', 'questions', 'created_at', 'updated_at']
 
 class SurveyTextSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurveyText
-        fields = ['id', 'survey', 'title', 'description', 'is_active', 'created_at']
+        fields = ['id', 'survey', 'title', 'description', 'is_active', 'created_at', 'updated_at']
 
 class SurveySerializer(serializers.ModelSerializer):
     chapters = ChapterSerializer(many=True, required=False)
@@ -86,7 +86,7 @@ class SurveySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Survey
-        fields = ['id', 'name', 'description', 'chapters', 'questions', 'texts', 'created_at']
+        fields = ['id', 'name', 'description', 'chapters', 'questions', 'texts', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         chapters_data = validated_data.pop('chapters', [])
@@ -118,7 +118,7 @@ class SurveySerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Las preguntas deben pertenecer a capítulos existentes en la encuesta.")
 
         return data
-    
+
     def update(self, instance, validated_data):
         chapters_data = validated_data.pop('chapters', [])
         instance.name = validated_data.get('name', instance.name)
@@ -144,7 +144,7 @@ class ResponseSerializer(serializers.Serializer):
 
     class Meta:
         model = Response
-        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'country', 'department', 'municipality']
+        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'country', 'department', 'municipality', 'created_at', 'updated_at']
         read_only_fields = ['user', 'response_text', 'response_number', 'option_selected']
 
     def validate(self, data):

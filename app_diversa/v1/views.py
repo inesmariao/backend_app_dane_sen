@@ -18,7 +18,7 @@ class WelcomeView(APIView):
     Vista de bienvenida para usuarios autenticados.
     """
     permission_classes = [IsAuthenticated]
-    
+
     @swagger_auto_schema(
         operation_description="Mensaje de bienvenida para usuarios autenticados.",
         responses={200: openapi.Response(description="Mensaje de bienvenida")}
