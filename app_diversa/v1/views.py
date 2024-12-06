@@ -55,6 +55,13 @@ class SurveyViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
+    def retrieve(self, request, *args, **kwargs):
+        survey = self.get_object()
+        serializer = self.get_serializer(survey)
+        data = serializer.data
+        data['questions'] = sorted(data['questions'], key=lambda q: q['order'])
+        return DRFResponse(data)
+
     def list(self, request, *args, **kwargs):
         """
         Listar todas las encuestas disponibles.

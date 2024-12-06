@@ -63,6 +63,10 @@ class Question(models.Model):
         'Chapter', on_delete=models.SET_NULL, null=True, blank=True, related_name='questions',
         help_text="Capítulo al que pertenece esta pregunta. Puede ser nulo si no está asociado a un capítulo."
     )
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Orden de la pregunta dentro de la encuesta."
+    )
     text = models.CharField(
         max_length=255,
         help_text="Texto de la pregunta. Máximo 255 caracteres."

@@ -24,7 +24,7 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'id', 'text', 'instruction', 'is_geographic', 'geography_type',
+            'id', 'order', 'text', 'instruction', 'is_geographic', 'geography_type',
             'question_type', 'is_required', 'data_type', 'min_value',
             'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'created_at', 'updated_at'
         ]
