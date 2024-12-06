@@ -170,7 +170,7 @@ class SurveySerializer(serializers.ModelSerializer):
 
 class ResponseSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
-    answer = serializers.CharField()
+    answer = serializers.CharField(allow_null=True)
 
     class Meta:
         model = Response
@@ -183,37 +183,37 @@ class ResponseSerializer(serializers.Serializer):
         except Question.DoesNotExist:
             raise serializers.ValidationError({"question_id": "La pregunta no existe."})
 
-        # Validar según el tipo de pregunta
+        # Convertir answer a un entero si la pregunta es geográfica:
+        if question.is_geographic and question.geography_type == "DEPARTMENT":
+            try:
+                data['answer'] = int(data['answer'])  # Convertir el valor a entero
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({"answer": "El código del departamento debe ser un número entero."})
+
+        # Validación para preguntas cerradas
         if question.question_type == 'closed':  # Pregunta cerrada
-            # Verifica si se ha seleccionado una opción
-            option_id = data.get('answer')  # Se asume que `answer` contiene el ID de la opción seleccionada
-            if not option_id:
-                raise serializers.ValidationError({
-                    "answer": "Debe seleccionar una opción para esta pregunta cerrada."
-                })
-            # Verifica que la opción seleccionada pertenezca a esta pregunta
-            if not question.options.filter(id=option_id).exists():
-                raise serializers.ValidationError({
-                    "answer": "La opción seleccionada no es válida para esta pregunta."
-                })
+            if data.get('answer') is None:
+                raise serializers.ValidationError({"option_selected": "Debe seleccionar una opción."})
+            option = Option.objects.filter(id=data['answer'], question=question).first()
+            if not option:
+                raise serializers.ValidationError({"answer": "La opción seleccionada no es válida para esta pregunta."})
+            data['option_selected'] = option
 
-            data['option_selected'] = Option.objects.get(id=option_id)  # Agregar la opción seleccionada
-
-        elif question.question_type == 'open':  # Pregunta abierta
-            # Validaciones para preguntas abiertas (entero o texto)
+        # Validaciones para preguntas abiertas
+        elif question.question_type == 'open':
             data_type = question.data_type
+            if data.get('answer') is None:
+                raise serializers.ValidationError({"answer": "Este campo no puede estar vacío."})
             if data_type == "integer":
                 try:
                     answer = int(data['answer'])
                 except ValueError:
                     raise serializers.ValidationError({"answer": "La respuesta debe ser un número entero."})
-                # Validar rangos
                 if question.min_value is not None and answer < question.min_value:
                     raise serializers.ValidationError({"answer": f"El valor debe ser mayor o igual a {question.min_value}."})
                 if question.max_value is not None and answer > question.max_value:
                     raise serializers.ValidationError({"answer": f"El valor debe ser menor o igual a {question.max_value}."})
                 data['response_number'] = answer
-
             elif data_type == "text":
                 if not isinstance(data['answer'], str):
                     raise serializers.ValidationError({"answer": "La respuesta debe ser un texto."})
@@ -225,6 +225,7 @@ class ResponseSerializer(serializers.Serializer):
             })
 
         return data
+
 
     def create(self, validated_data):
         """
