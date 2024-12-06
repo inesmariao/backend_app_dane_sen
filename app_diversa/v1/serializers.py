@@ -92,7 +92,7 @@ class SurveySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Survey
-        fields = ['id', 'name', 'description', 'chapters', 'questions', 'texts', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description_name', 'title', 'description_title', 'chapters', 'questions', 'texts', 'created_at', 'updated_at']
 
     def create(self, validated_data):
         chapters_data = validated_data.pop('chapters', [])
@@ -130,7 +130,9 @@ class SurveySerializer(serializers.ModelSerializer):
         questions_data = validated_data.pop('questions', [])
         texts_data = validated_data.pop('texts', [])
         instance.name = validated_data.get('name', instance.name)
-        instance.description = validated_data.get('description', instance.description)
+        instance.title = validated_data.get('title', instance.title)
+        instance.description_title = validated_data.get('description_title', instance.description_title)
+        instance.description_name = validated_data.get('description_name', instance.description_name)
         instance.save()
 
         # Actualizar o crear capítulos

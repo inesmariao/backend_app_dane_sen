@@ -45,7 +45,13 @@ class SurveyViewSet(viewsets.ModelViewSet):
 
     @swagger_auto_schema(operation_description="Obtiene una encuesta específica por su ID.")
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        survey = self.get_object()
+        serializer = self.get_serializer(survey)
+        data = serializer.data
+        data['title'] = survey.title
+        data['description_name'] = survey.description_name
+        data['description_title'] = survey.description_title
+        return DRFResponse(data)
 
     @swagger_auto_schema(operation_description="Actualiza una encuesta existente.")
     def update(self, request, *args, **kwargs):

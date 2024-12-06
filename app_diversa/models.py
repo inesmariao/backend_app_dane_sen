@@ -6,11 +6,20 @@ from django.core.exceptions import ValidationError
 class Survey(models.Model):
     name = models.CharField(
         max_length=255,
-        help_text="Nombre de la encuesta. Máximo 255 caracteres."
+        help_text="Nombre de la encuesta, se muestra en el encabezado de la encuesta. Máximo 255 caracteres."
     )
-    description = models.TextField(
+    description_name = models.TextField(
         blank=True, null=True,
-        help_text="Descripción detallada de la encuesta. Opcional."
+        help_text="Descripción detallada de la encuesta, se muestra debajo del name en el encabezado de la encuesta. Opcional."
+    )
+    title = models.CharField(
+        max_length=255,
+        help_text="Título de la encuesta que se muestra en las cards del índice. Obligatorio.",
+        default="TÍTULO POR DEFECTO"
+    )
+    description_title = models.TextField(
+        blank=True, null=True,
+        help_text="Descripción del título de la encuesta que se muestra en las cards del índice."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -19,6 +28,14 @@ class Survey(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, help_text="Fecha y hora en que se actualizó la encuesta."
     )
+
+    def save(self, *args, **kwargs):
+        # Convertir a mayúsculas antes de guardar
+        if self.name:
+            self.name = self.name.upper()
+        if self.title:
+            self.title = self.title.upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

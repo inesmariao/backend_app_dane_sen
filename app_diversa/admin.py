@@ -6,10 +6,11 @@ class SurveyAdmin(admin.ModelAdmin):
     """
     Configuración para gestionar encuestas (Survey) en el panel de administración.
     """
-    list_display = ('name', 'description', 'created_at')
+    # Actualizamos list_display para incluir los nuevos campos y renombramos 'description' a 'description_name'
+    list_display = ('name', 'title', 'description_name', 'description_title', 'created_at', 'updated_at')
     list_display_links = ('name',)  # Permite clic en el nombre
-    search_fields = ('name', 'description')  # Búsqueda por nombre y descripción
-    list_filter = ('created_at',)  # Filtro por fecha de creación
+    search_fields = ('name', 'title', 'description_name', 'description_title')  # Búsqueda avanzada
+    list_filter = ('created_at', 'updated_at')  # Filtros útiles por fecha de creación/actualización
     ordering = ('-created_at',)  # Orden descendente por fecha de creación
 
 
@@ -20,8 +21,8 @@ class ChapterAdmin(admin.ModelAdmin):
     """
     list_display = ('name', 'survey', 'description', 'created_at')
     list_display_links = ('name',)  # Permite clic en el nombre
-    search_fields = ('name', 'survey__name', 'description')  # Búsqueda por nombre y descripción
-    list_filter = ('survey', 'created_at')  # Filtros por encuesta y fecha de creación
+    search_fields = ('name', 'survey__name', 'description')  # Búsqueda avanzada
+    list_filter = ('survey', 'created_at')  # Filtros útiles
     ordering = ('-created_at',)  # Orden descendente por fecha
     autocomplete_fields = ('survey',)  # Mejora la experiencia al seleccionar encuestas relacionadas
 
