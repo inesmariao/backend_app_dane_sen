@@ -103,6 +103,10 @@ class Question(models.Model):
         blank=True, null=True,
         help_text="Valor máximo permitido para respuestas numéricas. Opcional."
     )
+    is_multiple = models.BooleanField(
+        default=False,
+        help_text="Indica si la pregunta permite seleccionar múltiples opciones."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la pregunta."
@@ -110,11 +114,15 @@ class Question(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, help_text="Fecha y hora en que se actualizó la pregunta."
     )
-    
+
     def clean(self):
         # Si la pregunta está asociada a un capítulo
         if self.chapter and self.chapter.survey != self.survey:
             raise ValidationError("El capítulo seleccionado no pertenece a la encuesta asociada a esta pregunta.")
+
+        # Solo se permite en preguntas cerradas
+        if self.is_multiple and self.question_type != 'closed':
+            raise ValidationError("Solo las preguntas cerradas pueden permitir selección múltiple.")
 
         super().clean()
 

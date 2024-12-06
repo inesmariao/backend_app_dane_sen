@@ -26,10 +26,11 @@ class QuestionFactory(factory.django.DjangoModelFactory):
     text = factory.Faker('sentence', nb_words=6)
     question_type = 'open'  # Valores posibles: 'open', 'closed'
     data_type = 'integer'   # Valores posibles: 'integer', 'text'
-    min_value = 10
-    max_value = 100
+    min_value = 0
+    max_value = 10000
     is_geographic = False
     geography_type = None
+    is_multiple = False
 
 class OptionFactory(factory.django.DjangoModelFactory):
     class Meta:

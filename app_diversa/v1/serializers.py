@@ -26,7 +26,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'text', 'instruction', 'is_geographic', 'geography_type',
             'question_type', 'is_required', 'data_type', 'min_value',
-            'max_value', 'chapter', 'survey', 'options', 'geography_options', 'created_at', 'updated_at'
+            'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'created_at', 'updated_at'
         ]
 
     def get_geography_options(self, obj):
