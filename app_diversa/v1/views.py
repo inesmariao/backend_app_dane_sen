@@ -46,6 +46,9 @@ class SurveyViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Obtiene una encuesta específica por su ID.")
     def retrieve(self, request, *args, **kwargs):
         survey = self.get_object()
+        questions = Question.objects.filter(survey=survey, parent_question__isnull=True).prefetch_related(
+            'subquestions', 'options'
+        )
         serializer = self.get_serializer(survey)
         data = serializer.data
         data['title'] = survey.title
@@ -65,7 +68,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
         survey = self.get_object()
         serializer = self.get_serializer(survey)
         data = serializer.data
-        data['questions'] = sorted(data['questions'], key=lambda q: q['order'])
+        data['questions'] = sorted(data['questions'], key=lambda q: q['order_question'])
         return DRFResponse(data)
 
     def list(self, request, *args, **kwargs):
@@ -94,7 +97,35 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     @swagger_auto_schema(operation_description="Crea una nueva pregunta.")
     def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
+        data = request.data
+        survey_id = data.get('survey')
+        chapter_id = data.get('chapter')
+        parent_question_id = data.get('parent_question')
+
+        # Validar que se proporcione una encuesta o capítulo
+        if not survey_id and not chapter_id:
+            return DRFResponse({"error": "Debe especificar una encuesta (survey) o un capítulo (chapter)."}, status=400)
+
+        # Validar que el capítulo pertenece a la encuesta
+        if chapter_id and survey_id:
+            chapter = Chapter.objects.filter(id=chapter_id, survey_id=survey_id).first()
+            if not chapter:
+                return DRFResponse({"error": "El capítulo no pertenece a la encuesta especificada."}, status=400)
+
+        # Validar subpregunta
+        if parent_question_id:
+            parent_question = Question.objects.filter(id=parent_question_id).first()
+            if not parent_question:
+                return DRFResponse({"error": "La pregunta padre no existe."}, status=400)
+            if parent_question.question_type != "matrix":
+                return DRFResponse({"error": "Solo las preguntas tipo 'matrix' pueden tener subpreguntas."}, status=400)
+
+        # Crear la pregunta
+        response = super().create(request, *args, **kwargs)
+        return DRFResponse({
+            "message": "Pregunta creada con éxito.",
+            "data": response.data
+        }, status=201)
 
     @swagger_auto_schema(operation_description="Obtiene una pregunta específica por su ID.")
     def retrieve(self, request, *args, **kwargs):
@@ -107,28 +138,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Elimina una pregunta específica.")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        data = request.data
-        survey_id = data.get('survey')
-        chapter_id = data.get('chapter')
-
-        # Validar que se proporcione una encuesta o capítulo
-        if not survey_id and not chapter_id:
-            return DRFResponse({"error": "Debe especificar una encuesta (survey) o un capítulo (chapter)."}, status=400)
-
-        # Validar que el capítulo pertenece a la encuesta
-        if chapter_id and survey_id:
-            chapter = Chapter.objects.filter(id=chapter_id, survey_id=survey_id).first()
-            if not chapter:
-                return DRFResponse({"error": "El capítulo no pertenece a la encuesta especificada."}, status=400)
-
-        # Crear la pregunta
-        response = super().create(request, *args, **kwargs)
-        return DRFResponse({
-            "message": "Pregunta creada con éxito.",
-            "data": response.data
-        }, status=201)
 
 class OptionViewSet(viewsets.ModelViewSet):
     """

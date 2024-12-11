@@ -31,67 +31,64 @@ def test_open_question_with_invalid_number():
     assert not serializer.is_valid()
     assert "answer" in serializer.errors
 
-# Casos límite
-
-# Pregunta abierta sin respuesta
+# Prueba para pregunta abierta sin respuesta
 @pytest.mark.django_db
 def test_open_question_without_answer():
     question = QuestionFactory(question_type="open", data_type="integer")
 
     serializer = ResponseSerializer(data={
         "question_id": question.id,
-        "answer": None  # No se envía respuesta
+        "answer": None
     })
 
     assert not serializer.is_valid()
     assert "answer" in serializer.errors
 
-# Pregunta cerrada sin opción seleccionada
+# Prueba para pregunta cerrada sin opción seleccionada
 @pytest.mark.django_db
 def test_closed_question_without_option_selected():
     question = QuestionFactory(question_type="closed")
-    OptionFactory(question=question, text="Opción 1")
+    OptionFactory(question=question, text_option="Opción 1")
 
     serializer = ResponseSerializer(data={
         "question_id": question.id,
-        "answer": None  # No se selecciona ninguna opción
+        "answer": None
     })
 
     assert not serializer.is_valid()
-    assert "option_selected" in serializer.errors  # Verifica que el error está en `option_selected`
+    assert "option_selected" in serializer.errors
 
-# Valores fuera de rango
+# Prueba para pregunta abierta con valor fuera de rango
 @pytest.mark.django_db
 def test_open_question_out_of_range():
     question = QuestionFactory(question_type="open", data_type="integer", min_value=10, max_value=100)
 
     serializer = ResponseSerializer(data={
         "question_id": question.id,
-        "answer": 150  # Valor fuera de rango
+        "answer": 150
     })
 
     assert not serializer.is_valid()
     assert "answer" in serializer.errors
 
-# Opciones inválidas
+# Prueba para pregunta cerrada con opción inválida
 @pytest.mark.django_db
 def test_closed_question_with_invalid_option():
     question = QuestionFactory(question_type="closed")
-    valid_option = OptionFactory(question=question, text="Opción válida")
-    invalid_option_id = 9999  # Un ID de opción que no existe
+    valid_option = OptionFactory(question=question, text_option="Opción válida")
+    invalid_option_id = 9999
 
     serializer = ResponseSerializer(data={
         "question_id": question.id,
-        "answer": invalid_option_id  # ID de una opción no válida
+        "answer": invalid_option_id
     })
 
     assert not serializer.is_valid()
     assert "answer" in serializer.errors
 
-# Pregunta geográfica válida
+# Prueba para pregunta geográfica válida
 @pytest.mark.django_db
 def test_geographic_question():
-    # Crear un país
     country = Country.objects.create(
         numeric_code=170,
         spanish_name="Colombia",
@@ -100,7 +97,6 @@ def test_geographic_question():
         alpha_2="CO"
     )
 
-    # Crear una pregunta de tipo geográfico con rangos que incluyan el código del departamento
     question = QuestionFactory(
         is_geographic=True,
         geography_type="DEPARTMENT",
@@ -108,18 +104,16 @@ def test_geographic_question():
         max_value=500
     )
 
-    # Crear un departamento vinculado al país
     department = Department.objects.create(
         code=5,
         name="Antioquia",
         country_numeric_code=country.numeric_code
     )
 
-    # Probar el serializer con un departamento como respuesta
     serializer = ResponseSerializer(data={
         "question_id": question.id,
-        "answer": str(department.code)  # Convertir a cadena para que coincida con el CharField del serializer
+        "answer": str(department.code)
     })
 
-    assert serializer.is_valid(), serializer.errors  # Verifica que los datos son válidos
-    assert int(serializer.validated_data["answer"]) == department.code  # Convertir a entero para comparar
+    assert serializer.is_valid(), serializer.errors
+    assert int(serializer.validated_data["answer"]) == department.code

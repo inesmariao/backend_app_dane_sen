@@ -1,12 +1,22 @@
 from rest_framework import serializers
 from ..models import Survey, Question, Option, Response, Chapter, SurveyText
-from app_geo.serializers import CountrySerializer, DepartmentSerializer, MunicipalitySerializer
 from app_geo.models import Country, Department, Municipality
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
-        fields = ['id', 'text', 'option_type', 'is_other', 'note', 'question', 'created_at', 'updated_at']
+        fields = ['id', 'text_option', 'option_type', 'is_other', 'note', 'order_option', 'created_at', 'updated_at']
+
+
+class SubQuestionSerializer(serializers.ModelSerializer):
+    options = OptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = [
+            'id', 'text_question', 'instruction', 'is_required',
+            'question_type', 'subquestion_order', 'options', 'created_at', 'updated_at'
+        ]
 
 class QuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, required=False)
@@ -24,9 +34,9 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'id', 'order', 'text', 'instruction', 'is_geographic', 'geography_type',
-            'question_type', 'is_required', 'data_type', 'min_value',
-            'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'created_at', 'updated_at'
+            'id', 'order_question', 'text_question', 'instruction', 'is_geographic', 'geography_type',
+            'question_type', 'is_required', 'data_type', 'min_value', 'max_value', 'chapter',
+            'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
         ]
 
     def get_geography_options(self, obj):
@@ -56,7 +66,9 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         options_data = validated_data.pop('options', [])
-        instance.text = validated_data.get('text', instance.text)
+        instance.text_question = validated_data.get('text_question', instance.text_question)
+        instance.is_subquestion = validated_data.get('is_subquestion', instance.is_subquestion)
+        instance.parent_order = validated_data.get('parent_order', instance.parent_order)
         instance.question_type = validated_data.get('question_type', instance.question_type)
         instance.save()
 

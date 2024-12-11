@@ -80,11 +80,19 @@ class Question(models.Model):
         'Chapter', on_delete=models.SET_NULL, null=True, blank=True, related_name='questions',
         help_text="Capítulo al que pertenece esta pregunta. Puede ser nulo si no está asociado a un capítulo."
     )
-    order = models.PositiveIntegerField(
+    parent_question = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subquestions',
+        help_text="Pregunta padre para subpreguntas en una matriz."
+    )
+    order_question = models.PositiveIntegerField(
         default=0,
         help_text="Orden de la pregunta dentro de la encuesta."
     )
-    text = models.CharField(
+    subquestion_order = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Orden de la subpregunta dentro de una matriz."
+    )
+    text_question = models.CharField(
         max_length=255,
         help_text="Texto de la pregunta. Máximo 255 caracteres."
     )
@@ -107,10 +115,6 @@ class Question(models.Model):
         choices=QUESTION_TYPES,
         help_text="Tipo de la pregunta, por ejemplo: 'open', 'closed', etc."
     )
-    is_required = models.BooleanField(
-        default=False,
-        help_text="Indica si la respuesta a esta pregunta es obligatoria."
-    )
     data_type = models.CharField(
         max_length=50,
         blank=True, null=True,
@@ -128,6 +132,10 @@ class Question(models.Model):
         default=False,
         help_text="Indica si la pregunta permite seleccionar múltiples opciones."
     )
+    is_required = models.BooleanField(
+        default=False,
+        help_text="Indica si la respuesta a esta pregunta es obligatoria."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la pregunta."
@@ -137,18 +145,18 @@ class Question(models.Model):
     )
 
     def clean(self):
-        # Si la pregunta está asociada a un capítulo
-        if self.chapter and self.chapter.survey != self.survey:
-            raise ValidationError("El capítulo seleccionado no pertenece a la encuesta asociada a esta pregunta.")
-
-        # Solo se permite en preguntas cerradas
-        if self.is_multiple and self.question_type != 'closed':
-            raise ValidationError("Solo las preguntas cerradas pueden permitir selección múltiple.")
-
+        # Validar que las subpreguntas solo pueden estar asociadas a preguntas tipo 'matrix'
+        if self.parent_question and self.parent_question.question_type != 'matrix':
+            raise ValidationError("Las subpreguntas solo pueden estar asociadas a preguntas de tipo 'matrix'.")
         super().clean()
 
+    @property
+    def subquestions_list(self):
+        return self.subquestions.all().order_by('subquestion_order')
+
     def __str__(self):
-        return self.text
+        return self.text_question
+
 
 class Option(models.Model):
     question = models.ForeignKey(
@@ -163,7 +171,7 @@ class Option(models.Model):
         blank=True, null=True,
         help_text="Especifica el tipo de esta opción."
     )
-    text = models.CharField(
+    text_option = models.CharField(
         max_length=255,
         help_text="Texto de la opción. Máximo 255 caracteres."
     )
@@ -175,6 +183,10 @@ class Option(models.Model):
         blank=True, null=True,
         help_text="Nota aclaratoria para esta opción. Opcional."
     )
+    order_option = models.PositiveIntegerField(
+        default=0,
+        help_text="Orden de la opción."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la opción."
@@ -183,9 +195,9 @@ class Option(models.Model):
         auto_now=True, help_text="Fecha y hora en que se actualizó la opción."
     )
 
-
     def __str__(self):
-        return self.text
+        return self.text_option
+
 
 class Response(models.Model):
     user = models.ForeignKey(
@@ -241,7 +253,7 @@ class Response(models.Model):
     )
 
     def __str__(self):
-        return f"Respuesta de {self.user} a {self.question.text}"
+        return f"Respuesta de {self.user} a {self.question.text_question}"
 
     def clean(self):
         """
@@ -259,12 +271,6 @@ class Response(models.Model):
         elif self.question.question_type == 'closed':  # Pregunta cerrada
             if not self.option_selected:
                 raise ValidationError("Debe seleccionar una opción para una pregunta cerrada.")
-
-        if self.country and (self.department or self.municipality):
-            raise ValidationError("No se puede asignar un país junto con un departamento o municipio.")
-
-        if not self.country and (not self.department or not self.municipality):
-            raise ValidationError("Debe proporcionar un departamento y municipio si no se especifica un país.")
 
         super().clean()
 
@@ -297,5 +303,3 @@ class SurveyText(models.Model):
 
     def __str__(self):
         return self.title
-
-
