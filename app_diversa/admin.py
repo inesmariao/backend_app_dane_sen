@@ -48,13 +48,13 @@ class QuestionAdmin(admin.ModelAdmin):
     """
     list_display = (
         'text_question', 'instruction', 'survey', 'chapter',
-        'question_type', 'is_required', 'order_question',
+        'question_type', 'matrix_layout_type','is_required', 'order_question',
         'created_at'
     )
     list_display_links = ('text_question',)
-    search_fields = ('text_question', 'instruction', 'survey__name', 'chapter__name')
+    search_fields = ('text_question', 'instruction', 'survey__name', 'chapter__name', 'matrix_layout_type',)
     list_filter = (
-        'survey', 'chapter', 'question_type',
+        'survey', 'chapter', 'question_type', 'matrix_layout_type',
         'is_required', 'created_at'
     )
     ordering = ('order_question',)

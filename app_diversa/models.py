@@ -70,6 +70,11 @@ class Question(models.Model):
         ('rating', 'Escala de Puntuación'),
         ('matrix', 'Pregunta Matricial'),
     ]
+    
+    MATRIX_LAYOUT_CHOICES = [
+        ('row', 'Matriz - Fila'),
+        ('column', 'Matriz - Columna')
+    ]
 
     survey = models.ForeignKey(
         Survey,
@@ -107,6 +112,13 @@ class Question(models.Model):
         max_length=10,
         choices=QUESTION_TYPES,
         help_text="Tipo de la pregunta, por ejemplo: 'open', 'closed', etc."
+    )
+    matrix_layout_type = models.CharField(
+        max_length=10,
+        choices=MATRIX_LAYOUT_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Diseño para preguntas tipo matriz: 'Fila' (row) u 'Columna' (column)."
     )
     data_type = models.CharField(
         max_length=50,
