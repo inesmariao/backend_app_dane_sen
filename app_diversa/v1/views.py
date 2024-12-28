@@ -4,8 +4,8 @@ from rest_framework.response import Response as DRFResponse
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import Survey, Question, Option, Chapter, SurveyText, Response as ModelResponse
-from .serializers import SurveySerializer, QuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
+from ..models import Survey, Question, SubQuestion, Option, Chapter, SurveyText, Response as ModelResponse
+from .serializers import SurveySerializer, QuestionSerializer, SubQuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
 from app_geo.models import Country, Department, Municipality
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
@@ -84,11 +84,68 @@ class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
 
+class SubQuestionViewSet(viewsets.ModelViewSet):
+    """
+    CRUD para subpreguntas (SubQuestion).
+    """
+    queryset = SubQuestion.objects.all()
+    serializer_class = SubQuestionSerializer
+
+    @swagger_auto_schema(operation_description="Lista de todas las subpreguntas.")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Crea una nueva subpregunta.")
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        parent_question_id = data.get('parent_question')
+        custom_identifier = data.get('custom_identifier')
+
+        # Validar que la pregunta padre exista y sea de tipo 'matrix'
+        if parent_question_id:
+            parent_question = Question.objects.filter(id=parent_question_id).first()
+            if not parent_question:
+                return DRFResponse({"error": "La pregunta padre no existe."}, status=400)
+            if parent_question.question_type != "matrix":
+                return DRFResponse({"error": "Solo las preguntas tipo 'matrix' pueden tener subpreguntas."}, status=400)
+
+        # Validar unicidad de custom_identifier dentro de las subpreguntas de la misma pregunta padre
+        if custom_identifier:
+            siblings = SubQuestion.objects.filter(parent_question_id=parent_question_id)
+            if siblings.filter(custom_identifier=custom_identifier).exists():
+                return DRFResponse(
+                    {"error": f"El identificador '{custom_identifier}' ya está en uso dentro de esta pregunta."},
+                    status=400
+                )
+
+        return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Actualiza una subpregunta existente.")
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = request.data
+        custom_identifier = data.get('custom_identifier')
+
+        # Validar unicidad de custom_identifier dentro de las subpreguntas de la misma pregunta padre
+        if custom_identifier:
+            siblings = SubQuestion.objects.filter(parent_question=instance.parent_question).exclude(id=instance.id)
+            if siblings.filter(custom_identifier=custom_identifier).exists():
+                return DRFResponse(
+                    {"error": f"El identificador '{custom_identifier}' ya está en uso dentro de esta pregunta."},
+                    status=400
+                )
+
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Elimina una subpregunta específica.")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
 class QuestionViewSet(viewsets.ModelViewSet):
     """
     CRUD para preguntas (questions) asociadas a encuestas.
     """
-    queryset = Question.objects.all()
+    queryset = Question.objects.prefetch_related('subquestions', 'options')
     serializer_class = QuestionSerializer
 
     @swagger_auto_schema(operation_description="Lista de todas las preguntas.")
@@ -100,7 +157,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
         data = request.data
         survey_id = data.get('survey')
         chapter_id = data.get('chapter')
-        parent_question_id = data.get('parent_question')
 
         # Validar que se proporcione una encuesta o capítulo
         if not survey_id and not chapter_id:
@@ -112,14 +168,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
             if not chapter:
                 return DRFResponse({"error": "El capítulo no pertenece a la encuesta especificada."}, status=400)
 
-        # Validar subpregunta
-        if parent_question_id:
-            parent_question = Question.objects.filter(id=parent_question_id).first()
-            if not parent_question:
-                return DRFResponse({"error": "La pregunta padre no existe."}, status=400)
-            if parent_question.question_type != "matrix":
-                return DRFResponse({"error": "Solo las preguntas tipo 'matrix' pueden tener subpreguntas."}, status=400)
-
         # Crear la pregunta
         response = super().create(request, *args, **kwargs)
         return DRFResponse({
@@ -127,9 +175,11 @@ class QuestionViewSet(viewsets.ModelViewSet):
             "data": response.data
         }, status=201)
 
-    @swagger_auto_schema(operation_description="Obtiene una pregunta específica por su ID.")
+    @swagger_auto_schema(operation_description="Obtiene listado de preguntas y subpreguntas")
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+        question = self.get_object()
+        serializer = self.get_serializer(question)
+        return DRFResponse(serializer.data)
 
     @swagger_auto_schema(operation_description="Actualiza una pregunta existente.")
     def update(self, request, *args, **kwargs):
@@ -138,10 +188,48 @@ class QuestionViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Elimina una pregunta específica.")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
+    
+    @action(detail=True, methods=["get", "post", "put", "delete"], url_path="subquestions")
+    def subquestions(self, request, pk=None):
+        """
+        CRUD para subquestions de una pregunta específica.
+        """
+        question = self.get_object()
+
+        if request.method == "GET":
+            # Listar subpreguntas de esta pregunta
+            subquestions = SubQuestion.objects.filter(parent_question=question)
+            serializer = SubQuestionSerializer(subquestions, many=True)
+            return Response(serializer.data)
+
+        elif request.method == "POST":
+            # Crear una subpregunta para esta pregunta
+            data = request.data
+            data["parent_question"] = question.id
+            serializer = SubQuestionSerializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=201)
+
+        elif request.method == "PUT":
+            # Actualizar una subpregunta específica
+            subquestion_id = request.data.get("id")
+            subquestion = SubQuestion.objects.get(id=subquestion_id, parent_question=question)
+            serializer = SubQuestionSerializer(subquestion, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=200)
+
+        elif request.method == "DELETE":
+            # Eliminar una subpregunta específica
+            subquestion_id = request.data.get("id")
+            subquestion = SubQuestion.objects.get(id=subquestion_id, parent_question=question)
+            subquestion.delete()
+            return Response({"message": "Subquestion eliminada correctamente"}, status=204)
 
 class OptionViewSet(viewsets.ModelViewSet):
     """
-    CRUD para opciones (options) de preguntas.
+    CRUD para opciones (options) de preguntas y subpreguntas.
     """
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
@@ -152,6 +240,12 @@ class OptionViewSet(viewsets.ModelViewSet):
 
     @swagger_auto_schema(operation_description="Crea una nueva opción.")
     def create(self, request, *args, **kwargs):
+        """
+        Validación para permitir opciones asociadas a preguntas y subpreguntas.
+        """
+        data = request.data
+        if not data.get('question') and not data.get('subquestion'):
+            return DRFResponse({"error": "Debe asociar la opción a una pregunta o subpregunta."}, status=400)
         return super().create(request, *args, **kwargs)
 
     @swagger_auto_schema(operation_description="Obtiene una opción específica por su ID.")

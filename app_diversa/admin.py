@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Survey, Chapter, Question, Option, SurveyText, Response
+from .models import Survey, Chapter, Question, SubQuestion, Option, SurveyText, Response
 
 
 @admin.register(Survey)
@@ -26,16 +26,30 @@ class ChapterAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     autocomplete_fields = ('survey',)
 
+@admin.register(SubQuestion)
+class SubQuestionAdmin(admin.ModelAdmin):
+    """
+    Configuración para gestionar subpreguntas (SubQuestion).
+    """
+    list_display = (
+        'custom_identifier', 'text_subquestion', 'instruction', 'parent_question',
+        'subquestion_order', 'is_required', 'created_at'
+    )
+    list_display_links = ('text_subquestion',)
+    search_fields = ('custom_identifier', 'text_subquestion', 'instruction', 'parent_question__text_question')
+    list_filter = ('parent_question', 'created_at')
+    ordering = ('subquestion_order',)
+    autocomplete_fields = ('parent_question',)
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     """
-    Configuración para gestionar preguntas (Question) asociadas a encuestas y capítulos.
+    Configuración para gestionar preguntas (Question) asociadas a encuestas, capítulos y subpreguntas.
     """
     list_display = (
         'text_question', 'instruction', 'survey', 'chapter',
         'question_type', 'is_required', 'order_question',
-        'parent_question', 'subquestion_order', 'created_at'
+        'created_at'
     )
     list_display_links = ('text_question',)
     search_fields = ('text_question', 'instruction', 'survey__name', 'chapter__name')
@@ -43,25 +57,24 @@ class QuestionAdmin(admin.ModelAdmin):
         'survey', 'chapter', 'question_type',
         'is_required', 'created_at'
     )
-    ordering = ('-created_at',)
+    ordering = ('order_question',)
     list_select_related = ('survey', 'chapter')
-    autocomplete_fields = ('parent_question',)
-
 
 
 @admin.register(Option)
 class OptionAdmin(admin.ModelAdmin):
     """
-    Configuración para gestionar opciones (Option) asociadas a preguntas.
+    Configuración para gestionar opciones (Option) asociadas a preguntas o subpreguntas.
     """
     list_display = (
-        'text_option', 'note', 'is_other', 'question',
-        'order_option', 'created_at'
+        'text_option', 'note', 'is_other', 'question', 'subquestion', 'question_id', 'subquestion_id', 'order_option', 'created_at'
     )
+    readonly_fields = ('question_id', 'subquestion_id')
     list_display_links = ('text_option',)
-    search_fields = ('text_option', 'note', 'question__text_question')
+    search_fields = ('text_option', 'note', 'question__text_question', 'subquestion__text_subquestion')
     list_filter = ('is_other', 'created_at')
     ordering = ('-created_at',)
+    autocomplete_fields = ('question', 'subquestion')
 
 
 @admin.register(SurveyText)
@@ -83,7 +96,7 @@ class ResponseAdmin(admin.ModelAdmin):
     """
     list_display = (
         'user', 'question', 'response_text',
-        'response_number', 'option_selected', 'created_at'
+        'response_number', 'option_selected', 'options_multiple_selected', 'created_at'
     )
     list_display_links = ('user', 'question')
     search_fields = (

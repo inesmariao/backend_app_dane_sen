@@ -1,25 +1,41 @@
 from rest_framework import serializers
-from ..models import Survey, Question, Option, Response, Chapter, SurveyText
+from ..models import Survey, Question, SubQuestion, Option, Response, Chapter, SurveyText
 from app_geo.models import Country, Department, Municipality
 
 class OptionSerializer(serializers.ModelSerializer):
+    question_id = serializers.ReadOnlyField(source='question.id')
+    subquestion_id = serializers.ReadOnlyField(source='subquestion.id')
+
     class Meta:
         model = Option
-        fields = ['id', 'text_option', 'option_type', 'is_other', 'note', 'order_option', 'created_at', 'updated_at']
+        fields = ['id', 'text_option', 'option_type', 'is_other', 'note', 'order_option', 'question', 'subquestion', 'question_id', 'subquestion_id', 'created_at', 'updated_at']
+
+    def validate(self, data):
+        # Validar que una opción esté asociada a una pregunta o subpregunta, pero no a ambas
+        if not data.get('question') and not data.get('subquestion'):
+            raise serializers.ValidationError("La opción debe estar asociada a una pregunta o a una subpregunta.")
+        if data.get('question') and data.get('subquestion'):
+            raise serializers.ValidationError("La opción no puede estar asociada tanto a una pregunta como a una subpregunta.")
+        return data
 
 
 class SubQuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, read_only=True)
-
+    custom_identifier = serializers.CharField(
+        required=False, allow_blank=True,
+        help_text="Identificador personalizado para subpreguntas. Ejemplo: 17.1"
+    )
     class Meta:
-        model = Question
+        model = SubQuestion
         fields = [
-            'id', 'text_question', 'instruction', 'is_required',
-            'question_type', 'subquestion_order', 'options', 'created_at', 'updated_at'
+            'id', 'parent_question', 'subquestion_order', 'text_subquestion',
+            'instruction', 'subquestion_type', 'is_required', 'min_value',
+            'max_value', 'custom_identifier', 'options', 'created_at', 'updated_at'
         ]
 
 class QuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, required=False)
+    subquestions = SubQuestionSerializer(many=True, read_only=True)
     chapter = serializers.PrimaryKeyRelatedField(queryset=Chapter.objects.all(), required=False)
     geography_options = serializers.SerializerMethodField()
 
@@ -34,9 +50,7 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'id', 'order_question', 'text_question', 'instruction', 'is_geographic', 'geography_type',
-            'question_type', 'is_required', 'data_type', 'min_value', 'max_value', 'chapter',
-            'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
+            'id', 'order_question', 'text_question', 'instruction', 'is_geographic', 'geography_type', 'question_type', 'is_required', 'data_type', 'min_value', 'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
         ]
 
     def get_geography_options(self, obj):
@@ -185,17 +199,38 @@ class SurveySerializer(serializers.ModelSerializer):
 class ResponseSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     answer = serializers.CharField(allow_null=True)
+    options_multiple_selected = serializers.ListField(
+        child=serializers.IntegerField(), allow_empty=True, required=False
+    )
 
     class Meta:
         model = Response
-        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'country', 'department', 'municipality', 'created_at', 'updated_at']
-        read_only_fields = ['user', 'response_text', 'response_number', 'option_selected']
+        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'options_multiple_selected', 'country', 'department', 'municipality', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
     def validate(self, data):
         try:
             question = Question.objects.get(id=data['question_id'])
         except Question.DoesNotExist:
             raise serializers.ValidationError({"question_id": "La pregunta no existe."})
+
+        # Validar preguntas cerradas no múltiples
+        if not question.is_multiple and not data.get('option_selected'):
+            raise serializers.ValidationError({"option_selected": "Debe seleccionar una opción para esta pregunta."})
+
+        # Validar preguntas de selección múltiple
+        if question.is_multiple:
+            if 'options_multiple_selected' not in data or not data['options_multiple_selected']:
+                raise serializers.ValidationError({
+                    "options_multiple_selected": "Debe seleccionar al menos una opción para preguntas de selección múltiple."
+                })
+            # Validar que todas las opciones seleccionadas pertenezcan a la pregunta
+            options = Option.objects.filter(question=question).values_list('id', flat=True)
+            invalid_options = [opt for opt in data['options_multiple_selected'] if opt not in options]
+            if invalid_options:
+                raise serializers.ValidationError({
+                    "options_multiple_selected": f"Las siguientes opciones no son válidas: {invalid_options}"
+                })
 
         # Convertir answer a un entero si la pregunta es geográfica:
         if question.is_geographic and question.geography_type == "DEPARTMENT":
@@ -245,15 +280,16 @@ class ResponseSerializer(serializers.Serializer):
         """
         Crea una respuesta en la base de datos, asociando al usuario autenticado y validando la pregunta.
         """
-        user = self.context['request'].user  # Obtener usuario autenticado del contexto
+        user = self.context['request'].user
         question = Question.objects.get(id=validated_data['question_id'])
-
-        return Response.objects.create(
+        response = Response.objects.create(
             user=user,
             question=question,
             response_text=validated_data.get('response_text'),
             response_number=validated_data.get('response_number'),
             option_selected=validated_data.get('option_selected'),
+            options_multiple_selected=validated_data.get('options_multiple_selected'),
         )
+        return response
 
 

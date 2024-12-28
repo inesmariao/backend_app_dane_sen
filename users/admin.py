@@ -5,7 +5,7 @@ from .models import CustomUser
 class CustomUserAdmin(UserAdmin):
     """
     Configuración personalizada para el modelo de usuario en el panel de administración.
-    
+
     Incluye la gestión de usuarios registrados con email, nombre de usuario (username)
     o número de celular como identificadores únicos. Permite la visualización,
     edición, eliminación lógica y filtrado de usuarios.
