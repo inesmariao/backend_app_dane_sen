@@ -142,7 +142,7 @@ class Question(models.Model):
         return self.subquestions.all().order_by('subquestion_order')
 
     def __str__(self):
-        return self.text_question
+        return f"{self.order_question} - {self.text_question}"
 
 class SubQuestion(models.Model):
     parent_question = models.ForeignKey(
@@ -224,7 +224,9 @@ class SubQuestion(models.Model):
         super().clean()
 
     def __str__(self):
-        return f"SubQuestion: {self.text_subquestion}"
+        if self.custom_identifier:
+            return f"{self.custom_identifier} - {self.text_subquestion}"
+        return f"{self.subquestion_order} - {self.text_subquestion}"
 
 
 class Option(models.Model):
