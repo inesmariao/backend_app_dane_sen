@@ -10,3 +10,6 @@ App_DANE_SEN es un proyecto de backend desarrollado para gestionar encuestas, pr
 4. Documentación de API: Swagger y Redoc para una experiencia de integración más clara y accesible.
 5. Soporte para respuestas de usuarios: Vinculación con encuestas y preguntas específicas.
 6. Versionamiento de API: Actualmente, la API está versionada con prefijo /v1/.
+
+## Desarrollado por:
+* Ing. Inés María Oliveros Hernández
