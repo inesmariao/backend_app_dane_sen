@@ -1,3 +1,5 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.viewsets import ModelViewSet
 from .models import Country, Department, Municipality
 from .serializers import CountrySerializer, DepartmentSerializer, MunicipalitySerializer, FileUploadSerializer
@@ -15,22 +17,32 @@ def get_departments(request):
     """
     Devuelve una lista de departamentos.
     """
-    if request.method == "GET":
-        departments = Department.objects.all().values('code', 'name')
-        return JsonResponse({'departments': list(departments)})
+    departments = Department.objects.all()
+    serializer = DepartmentSerializer(departments, many=True)
+    return Response(serializer.data)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_municipalities(request, department_code):
     """
-    Devuelve una lista de municipios según el departamento seleccionado.
+    Devuelve una lista de municipios según el código del departamento.
     """
-    if request.method == "GET":
+    try:
         municipalities = Municipality.objects.filter(department_code=department_code).values('code', 'name')
-        return JsonResponse({'municipalities': list(municipalities)})
+
+        if not municipalities:
+            return JsonResponse({'message': 'No se encontraron municipios para este departamento.'}, status=404)
+
+        return JsonResponse({'municipalities': list(municipalities)}, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 class CountryViewSet(ModelViewSet):
     """
     API para gestionar países.
     """
+    permission_classes = [AllowAny]
     queryset = Country.objects.all()
     serializer_class = CountrySerializer
 
@@ -46,6 +58,7 @@ class DepartmentViewSet(ModelViewSet):
     """
     API para gestionar departamentos.
     """
+    permission_classes = [AllowAny]
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
 
@@ -53,7 +66,16 @@ class MunicipalityViewSet(ModelViewSet):
     """
     API para gestionar municipios.
     """
+    permission_classes = [AllowAny]
     queryset = Municipality.objects.all()
+    serializer_class = MunicipalitySerializer
+
+    def get_queryset(self):
+        department_code = self.request.query_params.get('department_code')
+        if department_code:
+            return Municipality.objects.filter(department__code=department_code)
+        return Municipality.objects.all()
+
     serializer_class = MunicipalitySerializer
 
 class FileUploadView(APIView):

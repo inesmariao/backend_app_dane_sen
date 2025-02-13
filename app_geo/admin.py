@@ -24,18 +24,18 @@ class DepartmentAdmin(admin.ModelAdmin):
     Permite gestionar los departamentos con opciones de búsqueda y visualización
     por nombre, código y país asociado.
     """
-    list_display = ('name', 'code', 'country')  # Muestra nombre, código y país relacionado
+    list_display = ('name', 'code', 'country_name')  # Muestra nombre, código y país relacionado
     list_display_links = ('name',)  # Permite clic en el nombre
     search_fields = ('name', 'code')  # Habilita búsqueda por nombre o código
     ordering = ('name',)  # Orden alfabético por nombre
 
-    def country(self, obj):
+    def country_name(self, obj):
         """
         Devuelve el nombre del país al que pertenece el departamento.
         """
-        return obj.country.spanish_name if obj.country else "No asignado"
+        return obj.country.spanish_name if hasattr(obj, 'country') and obj.country else "No asignado"
 
-    country.short_description = "País"
+    country_name.short_description = "País"
 
 
 class CountryNumericCodeFilter(SimpleListFilter):
@@ -59,7 +59,7 @@ class CountryNumericCodeFilter(SimpleListFilter):
         Aplica el filtro a los municipios según el código numérico seleccionado.
         """
         if self.value():
-            return queryset.filter(department__country__numeric_code=self.value())
+            return queryset.filter(department__country_numeric_code=self.value())
         return queryset
 
 
@@ -71,16 +71,29 @@ class MunicipalityAdmin(admin.ModelAdmin):
     Permite gestionar municipios con opciones de búsqueda, visualización de
     nombre, código, departamento y filtrado por país.
     """
-    list_display = ('name', 'code', 'department', 'country_name')  # Campos visibles
-    list_display_links = ('name',)  # Clickeable en el nombre
-    search_fields = ('name', 'code')  # Habilita búsqueda por nombre o código
-    list_filter = (CountryNumericCodeFilter,)  # Filtro por país (código numérico)
-    ordering = ('name',)  # Orden alfabético por nombre
+    list_display = ('name', 'code', 'get_department_code', 'get_department_name')
+    list_display_links = ('name',)
+    search_fields = ('name', 'code')
+    ordering = ('name',)
+
+    def get_department_code(self, obj):
+        """
+        Devuelve el códio del departamento al que pertenece el municipio.
+        """
+        return obj.department_code
+    get_department_code.short_description = "Código de Departamento"
+
+    def get_department_name(self, obj):
+        """
+        Devuelve el nombre del departamento al que pertenece el municipio.
+        """
+        return obj.department.name if obj.department else "No asignado"
+    get_department_name.short_description = "Nombre del Departamento"
 
     def country_name(self, obj):
         """
         Devuelve el nombre del país al que pertenece el municipio.
         """
-        return obj.department.country.spanish_name if obj.department and obj.department.country else "No asignado"
+        return obj.department.country_name if hasattr(obj.department, 'country_name') else "No asignado"
 
     country_name.short_description = "País"

@@ -205,7 +205,7 @@ class ResponseSerializer(serializers.Serializer):
 
     class Meta:
         model = Response
-        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'options_multiple_selected', 'country', 'department', 'municipality', 'created_at', 'updated_at']
+        fields = ['question_id', 'answer', 'user', 'response_text', 'response_number', 'option_selected', 'options_multiple_selected', 'country', 'department_code', 'municipality', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
     def validate(self, data):

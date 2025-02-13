@@ -53,14 +53,14 @@ class Department(models.Model):
 class Municipality(models.Model):
     code = models.PositiveIntegerField(
         unique=True,
-        help_text="Código único del municipio (Ej: '5001' para Medellín)."
+        help_text="Código único del municipio (Ej: '5001' para Medellín')."
     )
     name = models.CharField(
         max_length=100,
         help_text="Nombre del municipio (Ej: 'Medellín')."
     )
     department_code = models.PositiveIntegerField(
-        help_text="Código del departamento al que pertenece este municipio, enlazado por 'code' de Department."
+        help_text="Código del departamento al que pertenece este municipio, enlazado con 'code' de Department."
     )
 
     def __str__(self):
@@ -69,10 +69,7 @@ class Municipality(models.Model):
     @property
     def department(self):
         """
-        Devuelve el objeto Department relacionado mediante `department_code`.
+        Devuelve el objeto `Department` relacionado según `department_code`.
         """
         return Department.objects.get(code=self.department_code)
-    
-    @property
-    def country_numeric_code(self):
-        return self.department.country.numeric_code if self.department and self.department.country else None
+

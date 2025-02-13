@@ -1,9 +1,10 @@
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import os
 
 # Paths
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Security
 SECRET_KEY = config('SECRET_KEY')
@@ -85,13 +86,26 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Dominio del frontend
+    "http://localhost:3000",
+    "http://192.168.20.121:3000",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     'content-type',
     'authorization',
     'x-csrftoken',
+]
+
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "DELETE",
+    "OPTIONS",
 ]
 
 
@@ -118,7 +132,15 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+
+# Directorio donde se recopilarán los archivos estáticos
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Directorios adicionales donde Django buscará archivos estáticos
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'AppDANE_SEN', 'static')
+]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -133,6 +155,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
 }
 
 SIMPLE_JWT = {

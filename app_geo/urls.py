@@ -14,9 +14,8 @@ urlpatterns = [
     # Incluye los endpoints de CRUD generados automáticamente
     path('', include(router.urls)),
     
-    path('departments/', views.get_departments, name='get_departments'),
-    
-    path('municipalities/<int:department_code>/', views.get_municipalities, name='get_municipalities'),
+    path('municipalities/by-department/<int:department_code>/', views.get_municipalities, name='get_municipalities'),
+
 
     # Endpoint para cargar archivos JSON o CSV
     path('upload/', FileUploadView.as_view(), name='file-upload'),
