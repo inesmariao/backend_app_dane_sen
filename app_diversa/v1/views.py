@@ -12,6 +12,8 @@ from rest_framework.decorators import action
 import tablib
 from reportlab.pdfgen import canvas
 from django.http import HttpResponse
+from rest_framework.response import Response
+
 
 class WelcomeView(APIView):
     """
@@ -88,7 +90,7 @@ class SubQuestionViewSet(viewsets.ModelViewSet):
     """
     CRUD para subpreguntas (SubQuestion).
     """
-    queryset = SubQuestion.objects.all()
+    queryset = SubQuestion.objects.prefetch_related('options').all()
     serializer_class = SubQuestionSerializer
 
     @swagger_auto_schema(operation_description="Lista de todas las subpreguntas.")

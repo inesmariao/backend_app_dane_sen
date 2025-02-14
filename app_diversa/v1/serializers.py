@@ -21,6 +21,7 @@ class OptionSerializer(serializers.ModelSerializer):
 
 class SubQuestionSerializer(serializers.ModelSerializer):
     options = OptionSerializer(many=True, read_only=True)
+
     custom_identifier = serializers.CharField(
         required=False, allow_blank=True,
         help_text="Identificador personalizado para subpreguntas. Ejemplo: 17.1"
