@@ -266,7 +266,8 @@ class ResponseSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-        question = Question.objects.get(id=question_id)
+        question = Question.objects.get(id=validated_data['question_id'])
+
         
         # Extraer instancias de los campos relacionados
         country = validated_data.pop('country', None)
