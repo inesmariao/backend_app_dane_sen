@@ -157,6 +157,7 @@ class Question(models.Model):
         return f"{self.order_question} - {self.text_question}"
 
 class SubQuestion(models.Model):
+    id = models.IntegerField(primary_key=True)
     parent_question = models.ForeignKey(
         'Question',
         on_delete=models.CASCADE,
@@ -224,7 +225,7 @@ class SubQuestion(models.Model):
 
         # Asegurar que los identificadores personalizados sean únicos dentro de las subpreguntas de una misma pregunta principal.
         if self.custom_identifier:
-            if self.parent_question and self.parent_question.pk:  # Verifica que parent_question esté guardado
+            if self.parent_question and self.parent_question.pk:
                 siblings = SubQuestion.objects.filter(parent_question=self.parent_question)
                 if siblings.exclude(id=self.id).filter(custom_identifier=self.custom_identifier).exists():
                     raise ValidationError(
@@ -387,39 +388,57 @@ class Response(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, help_text="Fecha y hora en que se actualizó la respuesta."
     )
+    
+    @property
+    def country_code(self):
+        return self.country.numeric_code if self.country else None
+
+    @property
+    def department_code(self):
+        return self.department.code if self.department else None
+
+    @property
+    def municipality_code(self):
+        return self.municipality.code if self.municipality else None
 
     def __str__(self):
         return f"Respuesta de {self.user} a {self.question.text_question}"
 
     def clean(self):
         """
-        Validaciones personalizadas para asegurar que las respuestas cumplan
-        con los requisitos según el tipo de pregunta.
+        Validaciones personalizadas para asegurar que las respuestas cumplan con los requisitos según el tipo de pregunta.
         """
-        from django.core.exceptions import ValidationError
-
-        # Validar preguntas abiertas
+        if self.response_number is not None and self.response_text is not None:
+            raise ValidationError("No se puede proporcionar una respuesta en `response_text` y `response_number` al mismo tiempo.")
+        
         if self.question.question_type == 'open':
-            if self.response_number is not None and self.response_text is not None:
-                raise ValidationError("Solo se puede llenar `response_text` o `response_number`, no ambos.")
             if self.response_number is None and self.response_text is None:
                 raise ValidationError("Debe proporcionar una respuesta abierta (texto o número).")
 
-        # Validar preguntas cerradas no múltiples
         elif self.question.question_type == 'closed' and not self.question.is_multiple:
             if not self.option_selected:
                 raise ValidationError("Debe seleccionar una opción para una pregunta cerrada.")
 
-        # Validar preguntas de selección múltiple
         elif self.question.question_type == 'closed' and self.question.is_multiple:
             if not self.options_multiple_selected:
                 raise ValidationError("Debe seleccionar al menos una opción para una pregunta de selección múltiple.")
-            if not isinstance(self.options_multiple_selected, list):
-                raise ValidationError("El campo `options_multiple_selected` debe ser una lista de opciones seleccionadas.")
-            if not all(isinstance(option, int) for option in self.options_multiple_selected):
-                raise ValidationError("Todas las opciones seleccionadas deben ser IDs enteros.")
+            
+            # Validación del tipo de datos
+            if self.options_multiple_selected is not None:
+                if not isinstance(self.options_multiple_selected, list):
+                    raise ValidationError("El campo `options_multiple_selected` debe ser una lista de opciones seleccionadas.")
+                if not all(isinstance(option, int) for option in self.options_multiple_selected):
+                    raise ValidationError("Todas las opciones seleccionadas deben ser IDs enteros.")
 
         super().clean()
+
+    def save(self, *args, **kwargs):
+        """
+        Refuerzo de validación en `save()`, asegurando que no se guarden `response_text` y `response_number` al mismo tiempo.
+        """
+        self.clean()
+        super().save(*args, **kwargs)
+
 
 class SurveyText(models.Model):
     survey = models.ForeignKey(
