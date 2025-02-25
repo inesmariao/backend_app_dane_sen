@@ -23,19 +23,36 @@ def get_departments(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_municipalities(request, department_code):
+def get_municipalities(request, department_id):
     """
-    Devuelve una lista de municipios según el código del departamento.
+    Devuelve una lista de municipios según el id del departamento.
     """
     try:
-        municipalities = Municipality.objects.filter(department_code=department_code).values('code', 'name')
+        department = Department.objects.filter(id=department_id).first()
+        if not department:
+            return Response(
+                {"error": "El departamento con el id proporcionado no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        if not municipalities:
-            return JsonResponse({'message': 'No se encontraron municipios para este departamento.'}, status=404)
+        municipalities = Municipality.objects.filter(department_code=department.code)
 
-        return JsonResponse({'municipalities': list(municipalities)}, safe=False)
+        if not municipalities.exists():
+            return Response(
+                {"message": "No se encontraron municipios para este departamento."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Serializa y retorna los municipios
+        serializer = MunicipalitySerializer(municipalities, many=True)
+
+        return Response({"municipalities": serializer.data}, status=status.HTTP_200_OK)
+
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        return Response(
+            {"error": f"Ocurrió un error inesperado: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 class CountryViewSet(ModelViewSet):
