@@ -363,6 +363,21 @@ class Response(models.Model):
         blank=True, null=True,
         help_text="Municipio seleccionado."
     )
+    # Campos para la pregunta 7
+    new_department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        related_name='responses_new_departments',
+        help_text="Nuevo departamento seleccionado (pregunta 7)."
+    )
+    new_municipality = models.ForeignKey(
+        Municipality,
+        on_delete=models.SET_NULL,
+        blank=True, null=True,
+        related_name='responses_new_municipalities',
+        help_text="Nuevo municipio seleccionado (pregunta 7)."
+    )
     response_text = models.TextField(
         null=True, blank=True,
         help_text="Texto proporcionado como respuesta. Opcional."

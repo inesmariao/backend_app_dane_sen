@@ -95,13 +95,20 @@ class ResponseAdmin(admin.ModelAdmin):
     Configuración para gestionar respuestas (Response) asociadas a preguntas.
     """
     list_display = (
-        'user', 'question', 'response_text',
-        'response_number', 'option_selected', 'options_multiple_selected', 'created_at'
+        'user', 'question', 'response_text', 'response_number',
+        'option_selected', 'options_multiple_selected',
+        'country', 'department', 'municipality',
+        'new_department', 'new_municipality',
+        'created_at'
     )
     list_display_links = ('user', 'question')
     search_fields = (
         'user__email', 'question__text_question', 'response_text',
-        'option_selected__text_option'
+        'option_selected__text_option', 'new_department__name', 'new_municipality__name'
     )
-    list_filter = ('created_at',)
+    list_filter = ('created_at', 'department', 'municipality', 'new_department', 'new_municipality')
     ordering = ('-created_at',)
+    autocomplete_fields = (
+        'question', 'option_selected', 'country', 'department',
+        'municipality', 'new_department', 'new_municipality'
+    )

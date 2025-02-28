@@ -306,6 +306,8 @@ class SubmitResponseView(APIView):
                         department_id=department_id,
                         municipality_id=municipality_id,
                         country_id=country_id,
+                        new_department=item.get('new_department'),
+                        new_municipality=item.get('new_municipality'),
                         response_text=item.get('answer') if isinstance(item.get('answer'), str) else None,
                         response_number=item.get('answer') if isinstance(item.get('answer'), int) else None,
                         option_selected=option_selected,
