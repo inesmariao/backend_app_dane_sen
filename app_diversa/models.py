@@ -98,6 +98,11 @@ class Question(models.Model):
         blank=True, null=True,
         help_text="Instrucción para el usuario sobre cómo responder la pregunta. Opcional."
     )
+    note = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Nota aclaratoria para la pregunta. Opcional."
+    )
     is_geographic = models.BooleanField(
         default=False,
         help_text="Indica si la pregunta requiere selección geográfica."
@@ -182,6 +187,11 @@ class SubQuestion(models.Model):
     instruction = models.TextField(
         blank=True, null=True,
         help_text="Instrucción específica para la subpregunta. Opcional."
+    )
+    note = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Nota aclaratoria para la subpregunta. Opcional."
     )
     subquestion_type = models.CharField(
         max_length=10,
@@ -276,7 +286,7 @@ class Option(models.Model):
     note = models.TextField(
         blank=True,
         null=True,
-        help_text="Nota aclaratoria para esta opción. Opcional."
+        help_text="Nota aclaratoria para la opción. Opcional."
     )
     order_option = models.PositiveIntegerField(
         default=0,
@@ -378,9 +388,14 @@ class Response(models.Model):
         related_name='responses_new_municipalities',
         help_text="Nuevo municipio seleccionado (pregunta 7)."
     )
+
     response_text = models.TextField(
         null=True, blank=True,
         help_text="Texto proporcionado como respuesta. Opcional."
+    )
+    other_text = models.TextField(
+        null=True, blank=True,
+        help_text="Texto ingresado por el usuario cuando selecciona la opción 'Otro'."
     )
     response_number = models.IntegerField(
         null=True, blank=True,
