@@ -1,9 +1,26 @@
 from rest_framework import serializers
-from ..models import Survey, Question, SubQuestion, Option, Response, Chapter, SurveyText
+from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Response, Chapter, SurveyText
 from app_geo.models import Country, Department, Municipality
 import logging # Debug
 
 logger = logging.getLogger(__name__) # Debug
+
+class SurveyAttemptSerializer(serializers.ModelSerializer):
+    """
+    Serializer para los intentos de completar encuestas.
+    """
+    class Meta:
+        model = SurveyAttempt
+        fields = '__all__'
+
+    def validate(self, data):
+        """
+        Validaciones antes de guardar el intento.
+        """
+        if data.get('birth_year') and (data.get('birth_month') is None or data.get('birth_day') is None):
+            raise serializers.ValidationError("Si proporciona el año de nacimiento, también debe indicar el mes y el día.")
+
+        return data
 
 class OptionSerializer(serializers.ModelSerializer):
     question_id = serializers.ReadOnlyField(source='question.id')
@@ -32,7 +49,7 @@ class SubQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubQuestion
         fields = [
-            'id', 'parent_question', 'subquestion_order', 'text_subquestion',
+            'id', 'parent_question', 'subquestion_order', 'text_subquestion', 'note',
             'instruction', 'subquestion_type', 'is_required', 'min_value',
             'max_value', 'custom_identifier', 'options', 'created_at', 'updated_at'
         ]
@@ -54,7 +71,7 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'id', 'order_question', 'text_question', 'instruction', 'is_geographic', 'geography_type', 'question_type', 'matrix_layout_type','is_required', 'data_type', 'min_value', 'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
+            'id', 'order_question', 'text_question', 'note', 'instruction', 'is_geographic', 'geography_type', 'question_type', 'matrix_layout_type','is_required', 'data_type', 'min_value', 'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
         ]
 
     def get_geography_options(self, obj):
@@ -201,12 +218,22 @@ class SurveySerializer(serializers.ModelSerializer):
         return instance
 
 class ResponseSerializer(serializers.Serializer):
-    question_id = serializers.IntegerField()
-    answer = serializers.CharField(required=False, allow_blank=True)
-    option_selected = serializers.PrimaryKeyRelatedField(queryset=Option.objects.all(), allow_null=True, required=False)
-    options_multiple_selected = serializers.ListField(child=serializers.IntegerField(), allow_null=True, allow_empty=True, required=False)
+    question_id = serializers.IntegerField(help_text="ID de la pregunta a la que corresponde la respuesta.")
+    answer = serializers.CharField(required=False, allow_blank=True, help_text="Texto ingresado en una pregunta abierta.")
+    option_selected = serializers.PrimaryKeyRelatedField(
+        queryset=Option.objects.all(), allow_null=True, required=False,
+        help_text="Opción seleccionada en preguntas cerradas."
+    )
+    options_multiple_selected = serializers.ListField(
+        child=serializers.IntegerField(), allow_null=True, allow_empty=True, required=False,
+        help_text="Lista de opciones seleccionadas en preguntas de selección múltiple."
+    )
+    survey_attempt = serializers.PrimaryKeyRelatedField(
+        queryset=SurveyAttempt.objects.all(), required=False,
+        help_text="Intento de la encuesta asociado a esta respuesta."
+    )
 
-    # Campos para las instancias (para la creación)
+    # Campos geográficos
     country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), allow_null=True, required=False)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), allow_null=True, required=False)
     municipality = serializers.PrimaryKeyRelatedField(queryset=Municipality.objects.all(), allow_null=True, required=False)
@@ -217,10 +244,14 @@ class ResponseSerializer(serializers.Serializer):
         model = Response
         fields = [
             "question_id", "answer", "option_selected", "options_multiple_selected",
-            "country", "department", "municipality", "new_department", "new_municipality"
+            "survey_attempt", "country", "department", "municipality",
+            "new_department", "new_municipality"
         ]
 
     def validate(self, data):
+        """
+        Validación de los datos antes de guardar la respuesta.
+        """
         try:
             question = Question.objects.get(id=data['question_id'])
         except Question.DoesNotExist:
@@ -274,11 +305,14 @@ class ResponseSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
+        """
+        Creación de la respuesta asegurando que se asocie a un `survey_attempt`.
+        """
         user = self.context['request'].user
         question = Question.objects.get(id=validated_data['question_id'])
 
-        # Si la pregunta es la 7 y la opción es "Sí", usar `new_department` y `new_municipality`
-        if question.id == 7 and validated_data.get('option_selected') and validated_data['option_selected'].text_option.strip().lower() == "sí":
+        # Si la pregunta es la 8 y la opción es "Sí", usar `new_department` y `new_municipality`
+        if question.id == 8 and validated_data.get('option_selected') and validated_data['option_selected'].text_option.strip().lower() == "sí":
             department = validated_data.get('new_department')
             municipality = validated_data.get('new_municipality')
         else:
@@ -293,6 +327,7 @@ class ResponseSerializer(serializers.Serializer):
         response = Response.objects.create(
             user=user,
             question=question,
+            survey_attempt=validated_data.get("survey_attempt"),
             country=validated_data.get('country'),
             department=department,
             municipality=municipality,

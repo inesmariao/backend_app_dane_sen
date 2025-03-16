@@ -1,6 +1,11 @@
 from django.contrib import admin
-from .models import Survey, Chapter, Question, SubQuestion, Option, SurveyText, Response
+from .models import SurveyAttempt, Survey, Chapter, Question, SubQuestion, Option, SurveyText, Response
 
+@admin.register(SurveyAttempt)
+class SurveyAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'survey', 'has_lived_in_colombia', 'birth_year', 'rejection_note', 'created_at')
+    search_fields = ('user__email', 'survey__name', 'rejection_note')
+    list_filter = ('created_at', 'has_lived_in_colombia', 'birth_year')
 
 @admin.register(Survey)
 class SurveyAdmin(admin.ModelAdmin):

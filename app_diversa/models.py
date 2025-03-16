@@ -1,8 +1,9 @@
 from django.db import models
-from app_geo.models import Country, Department, Municipality
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import JSONField
+from datetime import date
+from app_geo.models import Country, Department, Municipality
 
 class Survey(models.Model):
     name = models.CharField(
@@ -40,6 +41,64 @@ class Survey(models.Model):
 
     def __str__(self):
         return self.name
+
+class SurveyAttempt(models.Model):
+    """
+    Registra los intentos de completar una encuesta. Se usa para validar si el usuario cumple con los requisitos mínimos.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='survey_attempts',
+        help_text="Usuario que intentó completar la encuesta."
+    )
+    survey = models.ForeignKey(
+        'app_diversa.Survey', on_delete=models.CASCADE, related_name='attempts',
+        help_text="Encuesta que el usuario intentó completar."
+    )
+    has_lived_in_colombia = models.BooleanField(
+        help_text="Indica si el participante ha vivido en Colombia durante los últimos 5 años."
+    )
+    birth_day = models.IntegerField(
+        null=True, blank=True,
+        help_text="Día de nacimiento del participante (1-31)."
+    )
+    birth_month = models.IntegerField(
+        null=True, blank=True,
+        help_text="Mes de nacimiento del participante (1-12)."
+    )
+    birth_year = models.IntegerField(
+        null=True, blank=True,
+        help_text="Año de nacimiento del participante."
+    )
+
+    rejection_note = models.CharField(
+        max_length=255, null=True, blank=True,
+        help_text="Razón por la cual el usuario fue rechazado si no cumple con los requisitos."
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Fecha y hora en que se registró el intento de la encuesta."
+    )
+
+    def is_valid_participant(self):
+        """Valida si el usuario cumple con los requisitos mínimos."""
+        if not self.has_lived_in_colombia:
+            self.rejection_note = "No ha vivido en Colombia los últimos 5 años."
+            return False
+
+        if self.birth_year and self.birth_month and self.birth_day:
+            today = date.today()
+            birth_date = date(self.birth_year, self.birth_month, self.birth_day)
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if age < 18:
+                self.rejection_note = "Menor de 18 años."
+                return False
+
+        return True
+
+    def __str__(self):
+        return f"Intento - Usuario {self.user.id} - Encuesta {self.survey.id} - {self.rejection_note}"
 
 class Chapter(models.Model):
     survey = models.ForeignKey(
@@ -343,11 +402,21 @@ class Option(models.Model):
 
 
 class Response(models.Model):
+    """
+    Registra las respuestas de los participantes que han sido validados.
+    """
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='responses',
         help_text="Usuario que proporcionó esta respuesta."
+    )
+    survey_attempt = models.ForeignKey(
+        SurveyAttempt,
+        on_delete=models.CASCADE,
+        related_name='responses',
+        null=True, blank=True,
+        help_text="Intento de la encuesta asociado a esta respuesta."
     )
     question = models.ForeignKey(
         'Question',
@@ -373,22 +442,21 @@ class Response(models.Model):
         blank=True, null=True,
         help_text="Municipio seleccionado."
     )
-    # Campos para la pregunta 7
+    # Campos para la pregunta 8: "¿Ha cambiado de municipio de residencia en los últimos cinco años?"
     new_department = models.ForeignKey(
         Department,
         on_delete=models.SET_NULL,
         blank=True, null=True,
         related_name='responses_new_departments',
-        help_text="Nuevo departamento seleccionado (pregunta 7)."
+        help_text="Nuevo departamento seleccionado (pregunta 8)."
     )
     new_municipality = models.ForeignKey(
         Municipality,
         on_delete=models.SET_NULL,
         blank=True, null=True,
         related_name='responses_new_municipalities',
-        help_text="Nuevo municipio seleccionado (pregunta 7)."
+        help_text="Nuevo municipio seleccionado (pregunta 8)."
     )
-
     response_text = models.TextField(
         null=True, blank=True,
         help_text="Texto proporcionado como respuesta. Opcional."
@@ -431,9 +499,6 @@ class Response(models.Model):
     def municipality_code(self):
         return self.municipality.code if self.municipality else None
 
-    def __str__(self):
-        return f"Respuesta de {self.user} a {self.question.text_question}"
-
     def clean(self):
         """
         Validaciones personalizadas para asegurar que las respuestas cumplan con los requisitos según el tipo de pregunta.
@@ -452,7 +517,7 @@ class Response(models.Model):
         elif self.question.question_type == 'closed' and self.question.is_multiple:
             if not self.options_multiple_selected:
                 raise ValidationError("Debe seleccionar al menos una opción para una pregunta de selección múltiple.")
-            
+
             # Validación del tipo de datos
             if self.options_multiple_selected is not None:
                 if not isinstance(self.options_multiple_selected, list):
@@ -468,6 +533,9 @@ class Response(models.Model):
         """
         self.clean()
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Respuesta de {self.user} a {self.question.text_question}"
 
 
 class SurveyText(models.Model):

@@ -1,22 +1,23 @@
+from datetime import datetime
+from django.utils.timezone import now
+from dateutil.relativedelta import relativedelta
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
-from rest_framework.response import Response as DRFResponse
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.serializers import ValidationError as DRFValidationError 
+from rest_framework.response import Response as DRFResponse
+from rest_framework.serializers import ValidationError as DRFValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import Survey, Question, SubQuestion, Option, Chapter, SurveyText
+from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Chapter, SurveyText
 from ..models import Response as ModelResponse
-from .serializers import SurveySerializer, QuestionSerializer, SubQuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
+from .serializers import SurveyAttemptSerializer, SurveySerializer, QuestionSerializer, SubQuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
 from app_geo.models import Country, Department, Municipality
-from django.shortcuts import get_object_or_404
-from django.core.exceptions import ValidationError
-from django.http import HttpResponse
 import tablib
 from reportlab.pdfgen import canvas
-
 
 
 class WelcomeView(APIView):
@@ -32,6 +33,34 @@ class WelcomeView(APIView):
 
     def get(self, request):
         return Response({"message": "Bienvenido/a a AppDiversa"})
+
+class SurveyAttemptViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar intentos de completar encuestas (SurveyAttempt).
+    """
+    queryset = SurveyAttempt.objects.all()
+    serializer_class = SurveyAttemptSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(operation_description="Lista de intentos de completar encuestas.")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Crea un nuevo intento de encuesta.")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Obtiene un intento de encuesta específico por su ID.")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Actualiza un intento de encuesta existente.")
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Elimina un intento de encuesta.")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 class SurveyViewSet(viewsets.ModelViewSet):
     """
@@ -192,7 +221,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Elimina una pregunta específica.")
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-    
+
     @action(detail=True, methods=["get", "post", "put", "delete"], url_path="subquestions")
     def subquestions(self, request, pk=None):
         """
@@ -266,69 +295,126 @@ class OptionViewSet(viewsets.ModelViewSet):
 
 class SubmitResponseView(APIView):
     """
-    Endpoint para registrar respuestas de usuarios a preguntas o subpreguntas.
+    Endpoint para registrar respuestas de usuarios a preguntas o subpreguntas, validando primero si cumplen con los requisitos mínimos.
     """
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         operation_description="Registrar una o varias respuestas a preguntas o subpreguntas.",
         request_body=ResponseSerializer(many=True),
-        responses={201: openapi.Response(description="Respuestas guardadas correctamente."), 
-                   400: openapi.Response(description="Error en los datos enviados.")}
+        responses={201: openapi.Response(description="Respuestas guardadas correctamente."),
+                    400: openapi.Response(description="Error en los datos enviados.")}
     )
     def post(self, request):
+        """
+        Validación antes de registrar respuestas:
+        1. Verifica la pregunta: "¿Ha vivido en Colombia durante los últimos 5 años?"
+        2. Si responde "No", se guarda un intento en `SurveyAttempt` y se rechaza la encuesta.
+        3. Si responde "Sí", se valida la fecha de nacimiento.
+        4. Si es menor de edad, se guarda un intento en `SurveyAttempt` y se rechaza la encuesta.
+        5. Si es mayor de edad, se guardan todas las respuestas en `Response`.
+        """
+        user = request.user
+        data = request.data
+        responses_data = []
+        
         import json  # Debug
         print(f"\n🔥 DEBUG - Request data recibida:\n{json.dumps(request.data, indent=4)}")  # Debug
 
-        serializer = ResponseSerializer(data=request.data, many=True, context={'request': request})
+        # Obtener las preguntas de validación
+        question_live_in_colombia = get_object_or_404(Question, text_question="¿Ha vivido en Colombia durante los últimos 5 años?")
+        question_date_of_birth = get_object_or_404(Question, text_question="¿Cuál es su fecha de nacimiento?")
+
+        live_in_colombia_response = None
+        date_of_birth_response = None
+
+        # Extraer las respuestas de validación
+        for item in data:
+            if item["question_id"] == question_live_in_colombia.id:
+                live_in_colombia_response = item
+            elif item["question_id"] == question_date_of_birth.id:
+                date_of_birth_response = item
+            else:
+                responses_data.append(item)  # Guardar otras respuestas temporalmente
+
+        # Primera Validación: "¿Ha vivido en Colombia?"
+
+        print(f"🔍 DEBUG - Respuesta a '¿Ha vivido en Colombia?': {live_in_colombia_response}")  # Debug
+
+        if not live_in_colombia_response or live_in_colombia_response.get("option_selected") is None:
+            return DRFResponse({"error": "Debe responder si ha vivido en Colombia los últimos 5 años."}, status=status.HTTP_400_BAD_REQUEST)
+
+        live_in_colombia_opcion = get_object_or_404(Option, id=live_in_colombia_response["option_selected"])
+        
+        survey_id = request.data[0].get("survey_id", None)
+
+        if live_in_colombia_opcion.text_option.lower() == "no":
+            # Si responde "No", se guarda en `SurveyAttempt` y se rechaza la encuesta
+            SurveyAttempt.objects.create(
+                user=user,
+                survey_id=survey_id,
+                has_lived_in_colombia=False,
+                rejection_note="El usuario no ha vivido en Colombia los últimos 5 años."
+            )
+            return DRFResponse({"message": "No cumple con los requisitos para la encuesta."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Segunda Validación: Fecha de nacimiento
+        print(f"🔍 DEBUG - Respuesta a 'Fecha de nacimiento': {date_of_birth_response}")  # Debug
+
+        if not date_of_birth_response or not date_of_birth_response.get("answer"):
+            return DRFResponse({"error": "Debe ingresar su fecha de nacimiento."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            birth_date = datetime.strptime(date_of_birth_response["answer"], "%Y-%m-%d").date()
+        except ValueError:
+            return DRFResponse({"error": "Formato de fecha inválido. Debe ser YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+        age = relativedelta(now(), birth_date).years
+
+        if age < 18:
+            # Si es menor de 18 años, se rechaza y se guarda en `SurveyAttempt`
+            SurveyAttempt.objects.create(
+                user=user,
+                survey_id=survey_id,
+                has_lived_in_colombia=True,
+                birth_day=birth_date.day,
+                birth_month=birth_date.month,
+                birth_year=birth_date.year,
+                rejection_note=f"El usuario tiene {age} años, no cumple con el requisito de edad mínima."
+            )
+            return DRFResponse({"message": "No cumple con los requisitos de age para la encuesta."}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ **Crear registro en `SurveyAttempt` si pasa las validaciones**
+        survey_attempt = SurveyAttempt.objects.create(
+            user=user,
+            survey_id=survey_id,
+            has_lived_in_colombia=True,
+            birth_day=birth_date.day,
+            birth_month=birth_date.month,
+            birth_year=birth_date.year
+        )
+
+        # Si pasó ambas validaciones, se guardan todas las respuestas en `Response`
+        serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
 
         if serializer.is_valid():
             try:
-                all_responses_data = []
-                for item in serializer.validated_data:
-                    question_id = item['question_id']
-                    question = get_object_or_404(Question, id=question_id)
-                    print(f"ℹ️ DEBUG - Procesando pregunta con ID: {question_id}, tipo: {question.question_type}")
+                responses = serializer.save(survey_attempt=survey_attempt)
 
-                    # Procesar opciones seleccionadas
-                    option_selected = item.get('option_selected')
-                    options_multiple_selected = item.get('options_multiple_selected', [])
-
-                    # Variables geográficas
-                    department_id = item.get('department').id if item.get('department') else None
-                    municipality_id = item.get('municipality').id if item.get('municipality') else None
-                    country_id = item.get('country').id if item.get('country') else None
-
-                    # Crear la respuesta con IDs correctos
-                    response = ModelResponse.objects.create(
-                        user=request.user,
-                        question=question,
-                        department_id=department_id,
-                        municipality_id=municipality_id,
-                        country_id=country_id,
-                        new_department=item.get('new_department'),
-                        new_municipality=item.get('new_municipality'),
-                        response_text=item.get('answer') if isinstance(item.get('answer'), str) else None,
-                        response_number=item.get('answer') if isinstance(item.get('answer'), int) else None,
-                        option_selected=option_selected,
-                        options_multiple_selected=options_multiple_selected  # ✅ Pasa la lista de IDs
-                    )
-
-                    print(f"✅ Respuesta creada para pregunta ID {question_id}: {response}")
-
-                return Response({"message": "Respuestas guardadas exitosamente"}, status=201)
+                return DRFResponse({"message": "Respuestas guardadas exitosamente"},
+                                    status=status.HTTP_201_CREATED)
 
             except (ValueError, TypeError, DRFValidationError) as e:
-                print(f"❌ Error de validación o tipo de dato: {e}")
-                return Response({"error": str(e)}, status=400)
+                print(f"❌ Error de validación o tipo de dato: {e}") # Debug
+                return DRFResponse({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             except Exception as e:
-                print(f"❌ Error durante la creación de respuesta: {e}")
-                return Response({"error": "Error interno del servidor"}, status=500)
+                print(f"❌ Error durante la creación de respuesta: {e}") # Debug
+                return DRFResponse({"error": "Error interno del servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         else:
-            print(f"❌ ERROR - Datos del request no válidos:\n{json.dumps(serializer.errors, indent=4)}")
-            return Response(serializer.errors, status=400)
+            print(f"❌ ERROR - Datos del request no válidos:\n{json.dumps(serializer.errors, indent=4)}") # Debug
+            return DRFResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
