@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from datetime import date, datetime
 from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Response, Chapter, SurveyText
 from app_geo.models import Country, Department, Municipality
 import logging # Debug
@@ -17,8 +18,24 @@ class SurveyAttemptSerializer(serializers.ModelSerializer):
         """
         Validaciones antes de guardar el intento.
         """
-        if data.get('birth_year') and (data.get('birth_month') is None or data.get('birth_day') is None):
-            raise serializers.ValidationError("Si proporciona el año de nacimiento, también debe indicar el mes y el día.")
+        birth_date_str = data.get('birth_date')
+
+        if birth_date_str:
+            try:
+                birth_date = datetime.strptime(birth_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                raise serializers.ValidationError("Formato de fecha inválido. Debe ser YYYY-MM-DD.")
+
+            today = date.today()
+
+            # No permitir fechas futuras
+            if birth_date > today:
+                raise serializers.ValidationError("La fecha de nacimiento no puede estar en el futuro.")
+
+            # Verificar mayoría de edad (18+)
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if age < 18:
+                raise serializers.ValidationError("No cumple con el requisito de edad mínima (18 años).")
 
         return data
 
@@ -62,10 +79,21 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     # Validar los datos adicionales desde `validation_rules`
     def validate(self, data):
+
+        # Validar que min_value y max_value sean enteros si están definidos
         if data.get('min_value') and not isinstance(data['min_value'], int):
             raise serializers.ValidationError("El valor mínimo debe ser un entero.")
         if data.get('max_value') and not isinstance(data['max_value'], int):
             raise serializers.ValidationError("El valor máximo debe ser un entero.")
+
+        # Validar que geography_type solo esté presente en preguntas geográficas
+        if not data.get('is_geographic') and data.get('geography_type'):
+            raise serializers.ValidationError("Solo las preguntas geográficas pueden tener `geography_type`.")
+
+        # Validar que preguntas de tipo 'birth_date' no tengan geography_type
+        if data.get('question_type') == 'birth_date' and data.get('geography_type'):
+            raise serializers.ValidationError("Las preguntas de tipo 'Fecha de Nacimiento' no deben tener `geography_type`.")
+
         return data
 
     class Meta:
@@ -73,6 +101,12 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_question', 'text_question', 'note', 'instruction', 'is_geographic', 'geography_type', 'question_type', 'matrix_layout_type','is_required', 'data_type', 'min_value', 'max_value', 'chapter', 'survey', 'is_multiple', 'options', 'geography_options', 'subquestions', 'created_at', 'updated_at'
         ]
+
+    def validate_question_type(self, value):
+        valid_types = ['open', 'closed', 'likert', 'rating', 'matrix', 'birth_date']
+        if value not in valid_types:
+            raise serializers.ValidationError(f"El tipo de pregunta '{value}' no es válido.")
+        return value
 
     def get_geography_options(self, obj):
         if obj.is_geographic:
@@ -255,7 +289,11 @@ class ResponseSerializer(serializers.Serializer):
         try:
             question = Question.objects.get(id=data['question_id'])
         except Question.DoesNotExist:
-            raise serializers.ValidationError({"question_id": f"ID inválido: {data['question_id']} no existe."})
+            raise serializers.ValidationError({"question_id": f"ID de pregunta inválido: {data['question_id']} no existe."})
+
+        if question.question_type == 'birth_date':
+            if not data.get('response_number'):
+                raise serializers.ValidationError("Debe seleccionar una fecha de nacimiento válida.")
 
         # Si la pregunta NO es geográfica, no necesita validación extra
         if not question.is_geographic:

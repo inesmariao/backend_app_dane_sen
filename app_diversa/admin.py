@@ -3,9 +3,9 @@ from .models import SurveyAttempt, Survey, Chapter, Question, SubQuestion, Optio
 
 @admin.register(SurveyAttempt)
 class SurveyAttemptAdmin(admin.ModelAdmin):
-    list_display = ('user', 'survey', 'has_lived_in_colombia', 'birth_year', 'rejection_note', 'created_at')
+    list_display = ('user', 'survey', 'has_lived_in_colombia', 'birth_date', 'rejection_note', 'created_at')
     search_fields = ('user__email', 'survey__name', 'rejection_note')
-    list_filter = ('created_at', 'has_lived_in_colombia', 'birth_year')
+    list_filter = ('created_at', 'has_lived_in_colombia', 'birth_date')
 
 @admin.register(Survey)
 class SurveyAdmin(admin.ModelAdmin):

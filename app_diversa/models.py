@@ -59,19 +59,10 @@ class SurveyAttempt(models.Model):
     has_lived_in_colombia = models.BooleanField(
         help_text="Indica si el participante ha vivido en Colombia durante los últimos 5 años."
     )
-    birth_day = models.IntegerField(
+    birth_date = models.DateField(
         null=True, blank=True,
-        help_text="Día de nacimiento del participante (1-31)."
+        help_text="Fecha de nacimiento del participante en formato YYYY-MM-DD."
     )
-    birth_month = models.IntegerField(
-        null=True, blank=True,
-        help_text="Mes de nacimiento del participante (1-12)."
-    )
-    birth_year = models.IntegerField(
-        null=True, blank=True,
-        help_text="Año de nacimiento del participante."
-    )
-
     rejection_note = models.CharField(
         max_length=255, null=True, blank=True,
         help_text="Razón por la cual el usuario fue rechazado si no cumple con los requisitos."
@@ -84,16 +75,13 @@ class SurveyAttempt(models.Model):
     def is_valid_participant(self):
         """Valida si el usuario cumple con los requisitos mínimos."""
         if not self.has_lived_in_colombia:
-            self.rejection_note = "No ha vivido en Colombia los últimos 5 años."
             return False
 
-        if self.birth_year and self.birth_month and self.birth_day:
+        if self.birth_date:
+            from datetime import date
             today = date.today()
-            birth_date = date(self.birth_year, self.birth_month, self.birth_day)
-            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
-            if age < 18:
-                self.rejection_note = "Menor de 18 años."
-                return False
+            age = today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
+            return age >= 18
 
         return True
 
@@ -128,6 +116,7 @@ class Question(models.Model):
         ('likert', 'Escala Likert'),
         ('rating', 'Escala de Puntuación'),
         ('matrix', 'Pregunta Matricial'),
+        ('birth_date', 'Fecha de Nacimiento')
     ]
     
     MATRIX_LAYOUT_CHOICES = [
@@ -503,27 +492,22 @@ class Response(models.Model):
         """
         Validaciones personalizadas para asegurar que las respuestas cumplan con los requisitos según el tipo de pregunta.
         """
-        if self.response_number is not None and self.response_text is not None:
-            raise ValidationError("No se puede proporcionar una respuesta en `response_text` y `response_number` al mismo tiempo.")
-        
-        if self.question.question_type == 'open':
-            if self.response_number is None and self.response_text is None:
-                raise ValidationError("Debe proporcionar una respuesta abierta (texto o número).")
+        if (self.response_number is not None and self.response_text is not None) or \
+       (self.response_number is None and self.response_text is None and self.option_selected is None):
+            raise ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
 
-        elif self.question.question_type == 'closed' and not self.question.is_multiple:
-            if not self.option_selected:
-                raise ValidationError("Debe seleccionar una opción para una pregunta cerrada.")
+        if self.question.question_type == 'open' and not self.response_text:
+            raise ValidationError("Debe proporcionar una respuesta de texto para preguntas abiertas.")
 
-        elif self.question.question_type == 'closed' and self.question.is_multiple:
-            if not self.options_multiple_selected:
-                raise ValidationError("Debe seleccionar al menos una opción para una pregunta de selección múltiple.")
+        if self.question.question_type == 'closed' and not self.question.is_multiple and not self.option_selected:
+            raise ValidationError("Debe seleccionar una opción para preguntas cerradas.")
 
-            # Validación del tipo de datos
-            if self.options_multiple_selected is not None:
-                if not isinstance(self.options_multiple_selected, list):
-                    raise ValidationError("El campo `options_multiple_selected` debe ser una lista de opciones seleccionadas.")
-                if not all(isinstance(option, int) for option in self.options_multiple_selected):
-                    raise ValidationError("Todas las opciones seleccionadas deben ser IDs enteros.")
+        if self.question.question_type == 'closed' and self.question.is_multiple and not self.options_multiple_selected:
+            raise ValidationError("Debe seleccionar al menos una opción para preguntas de selección múltiple.")
+
+        if self.options_multiple_selected:
+            if not isinstance(self.options_multiple_selected, list) or not all(isinstance(option, int) for option in self.options_multiple_selected):
+                raise ValidationError("El campo `options_multiple_selected` debe ser una lista de IDs enteros.")
 
         super().clean()
 
