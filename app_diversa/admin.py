@@ -38,11 +38,11 @@ class SubQuestionAdmin(admin.ModelAdmin):
     """
     list_display = (
         'custom_identifier', 'text_subquestion', 'instruction', 'parent_question',
-        'subquestion_order', 'is_required', 'created_at'
+        'subquestion_order', 'is_required', 'is_other', 'created_at'
     )
     list_display_links = ('text_subquestion',)
     search_fields = ('custom_identifier', 'text_subquestion', 'instruction', 'parent_question__text_question')
-    list_filter = ('parent_question', 'created_at')
+    list_filter = ('parent_question', 'is_other', 'created_at')
     ordering = ('subquestion_order',)
     autocomplete_fields = ('parent_question',)
 

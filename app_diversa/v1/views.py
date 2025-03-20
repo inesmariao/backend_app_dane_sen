@@ -150,6 +150,22 @@ class SubQuestionViewSet(viewsets.ModelViewSet):
     queryset = SubQuestion.objects.prefetch_related('options').all()
     serializer_class = SubQuestionSerializer
 
+    @swagger_auto_schema(operation_description="Cuando se crea una subpregunta, se almacena el valor de is_other.")
+    def perform_create(self, serializer):
+        """
+        Agregar soporte para `is_other` al crear una subpregunta.
+        """
+        is_other = self.request.data.get("is_other", False)
+        serializer.save(is_other=is_other)
+
+    @swagger_auto_schema(operation_description="Cuando se actualiza una subpregunta, también se puede modificar el valor de is_other.")
+    def perform_update(self, serializer):
+        """
+        Agregar soporte para actualizar `is_other` en una subpregunta.
+        """
+        is_other = self.request.data.get("is_other", False)
+        serializer.save(is_other=is_other)
+
     @swagger_auto_schema(operation_description="Lista de todas las subpreguntas.")
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

@@ -267,6 +267,10 @@ class SubQuestion(models.Model):
         default=False,
         help_text="Indica si la respuesta a esta subpregunta es obligatoria."
     )
+    is_other = models.BooleanField(
+        default=False,
+        help_text="Indica si esta opción representa la respuesta 'Otro'."
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Fecha y hora en que se creó la subpregunta."

@@ -63,12 +63,18 @@ class SubQuestionSerializer(serializers.ModelSerializer):
         required=False, allow_blank=True,
         help_text="Identificador personalizado para subpreguntas. Ejemplo: 17.1"
     )
+
+    is_other = serializers.BooleanField(
+        required=False,
+        help_text="Indica si esta subpregunta representa la opción 'Otro'."
+    )
+
     class Meta:
         model = SubQuestion
         fields = [
             'id', 'parent_question', 'subquestion_order', 'text_subquestion', 'note',
             'instruction', 'subquestion_type', 'is_required', 'min_value',
-            'max_value', 'custom_identifier', 'options', 'created_at', 'updated_at'
+            'max_value', 'custom_identifier', 'is_other', 'options', 'created_at', 'updated_at'
         ]
 
 class QuestionSerializer(serializers.ModelSerializer):
