@@ -261,7 +261,12 @@ class ResponseSerializer(serializers.Serializer):
     question_id = serializers.IntegerField(help_text="ID de la pregunta a la que corresponde la respuesta.")
     subquestion_id = serializers.PrimaryKeyRelatedField(
         queryset=SubQuestion.objects.all(), allow_null=True, required=False,
+        write_only=True,
         help_text="ID de la subpregunta asociada (solo para preguntas tipo matriz)."
+    )
+    subquestion = serializers.PrimaryKeyRelatedField(
+        queryset=SubQuestion.objects.all(), allow_null=True, required=False,
+        help_text="Objeto de la subpregunta asociada.", write_only=True
     )
     answer = serializers.CharField(required=False, allow_blank=True, help_text="Texto ingresado en una pregunta abierta.")
     option_selected = serializers.PrimaryKeyRelatedField(
@@ -284,23 +289,36 @@ class ResponseSerializer(serializers.Serializer):
     class Meta:
         model = Response
         fields = [
-            "question_id", "subquestion_id", "answer", "option_selected", "options_multiple_selected",
-            "survey_attempt", "country", "department", "municipality", "new_department", "new_municipality"
+            "question_id", "subquestion_id", "subquestion", "answer", "option_selected", 
+            "options_multiple_selected", 'response_text', "survey_attempt", "country", 
+            "department", "municipality", "new_department", "new_municipality"
         ]
 
     def validate(self, data):
         """
         Validación de los datos antes de guardar la respuesta.
         """
-        print(f"DEBUG: Datos recibidos en validate: {data}") 
+        print(f"DEBUG: Datos recibidos en validate: {data}")
 
         question_id = data.get("question_id")
+        subquestion_id = data.pop("subquestion_id", None)  # Extraemos y removemos `subquestion_id`
 
         try:
             question = Question.objects.get(id=question_id)
         except Question.DoesNotExist:
             raise serializers.ValidationError({"question_id": f"ID de pregunta inválido: {question_id} no existe."})
-        
+
+        # Convertimos `subquestion_id` en `subquestion`
+        if subquestion_id:
+            subquestion = SubQuestion.objects.filter(id=subquestion_id).first()
+            if not subquestion:
+                raise serializers.ValidationError({"subquestion_id": f"La subpregunta con ID {subquestion_id} no existe."})
+            data["subquestion"] = subquestion  # Guardamos la subpregunta en `data`
+
+        # Validación de preguntas tipo matriz
+        if question.question_type == 'matrix' and not data.get("subquestion"):
+            raise serializers.ValidationError({"subquestion_id": "Las preguntas tipo matriz requieren una subpregunta asociada."})
+
         # Si la pregunta es de selección múltiple, `options_multiple_selected` debe tener datos
         if question.is_multiple and not data.get("options_multiple_selected"):
             raise serializers.ValidationError("Debe seleccionar al menos una opción en preguntas de selección múltiple.")
@@ -309,15 +327,9 @@ class ResponseSerializer(serializers.Serializer):
         if not data.get("answer") and not data.get("option_selected") and not data.get("options_multiple_selected"):
             raise serializers.ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
 
-
         if question.question_type == 'birth_date':
             if not data.get('response_number'):
                 raise serializers.ValidationError("Debe seleccionar una fecha de nacimiento válida.")
-
-        # Validación de subpregunta en preguntas tipo matriz
-        if question.question_type == 'matrix' and not data.get("subquestion_id"):
-            raise serializers.ValidationError({"subquestion_id": "Las preguntas tipo matriz requieren una subpregunta asociada."})
-
 
         # Validación para preguntas geográficas
         if question.is_geographic and question.id != 8:
@@ -325,12 +337,6 @@ class ResponseSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
             if not data.get("municipality"):
                 raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
-
-            # if data.get("option_selected") and data["option_selected"].text_option.lower() != "no":
-            #     if question.geography_type == 'DEPARTMENT' and not data.get('department'):
-            #         raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
-            #     if question.geography_type == 'MUNICIPALITY' and not data.get('municipality'):
-            #         raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
 
         # Validación de `option_selected` antes de acceder a sus propiedades
         option = data.get('option_selected')
@@ -355,7 +361,6 @@ class ResponseSerializer(serializers.Serializer):
         if "options_multiple_selected" in data:
             option_ids = data["options_multiple_selected"]
 
-            # En este punto, Django ya ha convertido los IDs en objetos Option, así que verificamos:
             if not all(isinstance(opt, Option) for opt in option_ids):
                 raise serializers.ValidationError({"options_multiple_selected": "Debe contener objetos Option válidos."})
 
@@ -373,80 +378,22 @@ class ResponseSerializer(serializers.Serializer):
         else:
             raise serializers.ValidationError({"user": "El usuario es obligatorio."})
     
+        # Extraer y procesar las opciones múltiples seleccionadas
         options_multiple_selected = validated_data.pop('options_multiple_selected', [])
 
-        # Primero, crea y guarda la instancia de Response
-        response = Response.objects.create(**validated_data)
+        # Extraer subpregunta correctamente
+        subquestion = validated_data.pop('subquestion', None)
 
-        # Ahora que `response` tiene un ID, se pueden asignar las opciones múltiples
+        # Crear la instancia de Response
+        response = Response.objects.create(
+            **validated_data,
+            subquestion=subquestion
+        )
+
+        # Asignar opciones múltiples seleccionadas si existen
         if options_multiple_selected:
             response.options_multiple_selected.set(options_multiple_selected)
 
         print(f"DEBUG: Creando respuesta con datos: {validated_data}")
-
-        user = request.user if request and request.user.is_authenticated else None
-
-        if not user:
-            raise serializers.ValidationError("El usuario es obligatorio para guardar la respuesta.")
-
-        question = Question.objects.get(id=validated_data["question_id"])
-        subquestion = validated_data.get("subquestion_id", None)
-        survey_attempt = validated_data.get("survey_attempt", None)
-
-        # Django ya ha convertido los IDs en objetos, así que no es necesario hacer más conversiones.
-        options_multiple_selected_objects = validated_data.pop("options_multiple_selected", [])
-
-
-        # validated_data["user"] = user
-        # validated_data["question"] = question
-        
-        
-        # if subquestion:
-        #     validated_data["subquestion"] = subquestion
-        # else:
-        #     validated_data.pop("subquestion_id", None)
-        
-        print(f"DEBUG: Guardando respuesta - Pregunta ID: {question.id} ({question.question_type})")
-        print(f"DEBUG: Subpregunta ID: {subquestion.id if subquestion else 'None'}")
-
-        # # Pregunta 8: Guardar en new_department y new_municipality
-        # if question.id == 8:
-        #     response = Response.objects.create(
-        #         user=user,
-        #         question=question,
-        #         survey_attempt=validated_data.get("survey_attempt"),
-        #         country=validated_data.get("country"),
-        #         new_department=validated_data.get("new_department", None),
-        #         new_municipality=validated_data.get("new_municipality", None),
-        #         option_selected=validated_data.get("option_selected"),
-        #     )
-        # else:
-        #     # Para otras preguntas, usar los campos normales
-        #     response = Response.objects.create(
-        #         user=user,
-        #         question=question,
-        #         survey_attempt=validated_data.get("survey_attempt"),
-        #         country=validated_data.get("country"),
-        #         department=validated_data.get("department"),
-        #         municipality=validated_data.get("municipality"),
-        #         option_selected=validated_data.get("option_selected"),
-        #     )
-
-        response = Response.objects.create(
-        user=user,
-        question=question,
-        subquestion=subquestion,
-        survey_attempt=survey_attempt,
-        country=validated_data.get("country"),
-        department=validated_data.get("department"),
-        municipality=validated_data.get("municipality"),
-        new_department=validated_data.get("new_department", None),
-        new_municipality=validated_data.get("new_municipality", None),
-        option_selected=validated_data.get("option_selected"),
-    )
-
-        # Guardar opciones múltiples sin conversión
-        if options_multiple_selected_objects:
-            response.options_multiple_selected.set(options_multiple_selected_objects)
 
         return response
