@@ -355,24 +355,27 @@ class SubmitResponseView(APIView):
         }
     )
     def post(self, request):
-        """
-        Validación antes de registrar respuestas:
-        1. Pregunta: "¿Ha vivido en Colombia durante los últimos 5 años?"
-            - Si responde "No", se rechaza la encuesta.
-            - Si responde "Sí", se valida la fecha de nacimiento.
-        2. Si es menor de edad, se rechaza la encuesta.
-        3. Si cumple con los requisitos, se registran todas las respuestas.
-        """
         user = request.user
         data = request.data
 
-        # 🔥 Crear un diccionario de respuestas para acceso rápido
-        responses_dict = {item["question_id"]: item for item in data}
+        # 🔹 Verificar si data es una lista válida
+        if not isinstance(data, list):
+            return Response({"error": "El cuerpo de la solicitud debe ser una lista de respuestas."}, status=400)
 
-        # Obtener respuestas clave
+        # 🔹 Validar que cada elemento de `data` contenga `question_id`
+        for idx, item in enumerate(data):
+            if not isinstance(item, dict):
+                return Response({"error": f"Cada respuesta debe ser un objeto JSON. Error en índice {idx}."}, status=400)
+            if "question_id" not in item:
+                return Response({"error": f"Cada respuesta debe contener 'question_id'. Faltante en índice {idx}."}, status=400)
+            
+        print("🔥 DEBUG - Request data:", data)
+
+        # Crear diccionario para acceso rápido a respuestas
+        responses_dict = {item["question_id"]: item for item in data if "question_id" in item}
+
+        # 📌 Validar pregunta clave: ¿Ha vivido en Colombia los últimos 5 años?
         response_colombia = responses_dict.get(1)
-        response_birth_date = responses_dict.get(2)
-
         if not response_colombia:
             return Response({"error": "Debe responder si ha vivido en Colombia los últimos 5 años."}, status=400)
 
@@ -380,15 +383,12 @@ class SubmitResponseView(APIView):
         if not option_id:
             return Response({"error": "Debe seleccionar una opción válida."}, status=400)
 
-        # Validar la opción seleccionada
         option = get_object_or_404(Option, id=option_id)
 
-        # Obtener el ID de la encuesta
         survey_id = response_colombia.get("survey_id")
         if not survey_id:
             return Response({"error": "Falta el ID de la encuesta (survey_id)."}, status=400)
 
-        # 📌 Caso 1: Si responde "No" → Se rechaza la encuesta
         if option.text_option.lower() == "no":
             SurveyAttempt.objects.create(
                 user=user,
@@ -398,29 +398,22 @@ class SubmitResponseView(APIView):
             )
             return Response({"message": "No cumple con los requisitos para la encuesta."}, status=403)
 
-        # 📌 Caso 2: Si responde "Sí" pero no proporciona fecha de nacimiento
+        # 📌 Validar fecha de nacimiento si responde "Sí"
+        response_birth_date = responses_dict.get(2)
         if not response_birth_date:
-            return Response(
-                {"message": "Debe responder la fecha de nacimiento."},
-                status=206  # Código 206 indica que falta información
-            )
+            return Response({"message": "Debe responder la fecha de nacimiento."}, status=206)
 
-        # 📌 Caso 3: Validación de fecha de nacimiento
         try:
             birth_date = datetime.strptime(response_birth_date["answer"], "%Y-%m-%d").date()
         except ValueError:
             return Response({"error": "Formato de fecha inválido. Debe ser YYYY-MM-DD."}, status=400)
 
         today = date.today()
-
-        # 🚨 No permitir fechas futuras
         if birth_date > today:
             return Response({"error": "Fecha futura inválida, seleccione una fecha de nacimiento correcta."}, status=400)
 
-        # 📌 Calcular la edad
         age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
-        # 📌 Caso 4: Si es menor de edad → Se rechaza la encuesta
         if age < 18:
             SurveyAttempt.objects.create(
                 user=user,
@@ -431,7 +424,6 @@ class SubmitResponseView(APIView):
             )
             return Response({"message": "No cumple con los requisitos de edad."}, status=403)
 
-        # 📌 Caso 5: Si cumple con los requisitos → Crear un intento de encuesta
         survey_attempt = SurveyAttempt.objects.create(
             user=user,
             survey_id=survey_id,
@@ -440,43 +432,90 @@ class SubmitResponseView(APIView):
         )
 
         # 🚀 Procesar respuestas restantes
-        responses_data = [item for item in data if item["question_id"] not in [1, 2]]
+        responses_data = [item for item in data if "question_id" in item and item["question_id"] not in [1, 2]]
 
-        # Obtener todas las preguntas y opciones para optimizar consultas
+        # 🔹 Obtener todas las preguntas y opciones para optimizar consultas
         questions = {q.id: q for q in Question.objects.all()}
         options = {o.id: o for o in Option.objects.all()}
 
-        # 📌 Validación de preguntas tipo matriz y datos obligatorios
-        for response_data in responses_data:
-            question_id = response_data["question_id"]
-            question = questions.get(question_id)
+        # 🚀 Validar que cada respuesta es un diccionario y contiene 'question_id'
+        for idx, item in enumerate(data):
+            if not isinstance(item, dict):
+                return Response({"error": f"Cada respuesta debe ser un objeto JSON. Error en índice {idx}."}, status=400)
+            if "question_id" not in item:
+                return Response({"error": f"Cada respuesta debe contener 'question_id'. Faltante en índice {idx}."}, status=400)
 
+        print("🔥 DEBUG - Validación antes de responses_data:", data)
+
+        # Filtrar respuestas asegurando que 'question_id' está presente antes de acceder a él
+        responses_data = [item for item in data if item.get("question_id") and item["question_id"] not in [1, 2]]
+        
+        print("🔥 DEBUG - Contenido de responses_data antes del bucle:", responses_data)
+
+
+
+        for response_data in responses_data:
+            if not isinstance(response_data, dict):
+                return Response({"error": "Una de las respuestas no es un objeto JSON válido."}, status=400)
+
+            question_id = response_data.get("question_id")
+            
+            print("🔥 DEBUG - Elemento problemático en responses_data:", response_data)
+
+            if question_id is None:
+                return Response({"error": "Una de las respuestas no tiene 'question_id'."}, status=400)
+
+            # 📌 Manejo de opciones `is_other`
+            option_selected_id = response_data.get("option_selected")
+            other_text = response_data.get("other_text", "").strip()
+
+            if option_selected_id:
+                option = options.get(option_selected_id)
+
+                if not option:
+                    return Response({"error": f"La opción con ID {option_selected_id} no existe."}, status=400)
+
+                if option.is_other and not other_text:
+                    return Response({"error": f"Debe proporcionar un texto para la opción 'Otro' en la pregunta {question_id}."}, status=400)
+                elif not option.is_other:
+                    response_data.pop("other_text", None)
+
+            # 📌 Manejo de subpreguntas `is_other`
+            subquestion_id = response_data.get("subquestion_id")
+            if subquestion_id:
+                subquestion = get_object_or_404(SubQuestion, id=subquestion_id)
+                if subquestion.is_other and not other_text:
+                    return Response({"error": f"Debe proporcionar un texto para la subpregunta 'Otro' en la pregunta {question_id}."}, status=400)
+                elif not subquestion.is_other:
+                    response_data.pop("other_text", None)
+
+            # 📌 Validación de preguntas tipo matriz
+            question = questions.get(question_id)
             if not question:
                 return Response({"error": f"Pregunta con ID {question_id} no encontrada."}, status=400)
 
-            if 'subquestion_id' in response_data:
-                response_data['subquestion'] = response_data.pop('subquestion_id')
-        
-            # Validación de preguntas tipo matriz
-            if question.question_type == "matrix" and not response_data.get("subquestion"):
-                return Response(
-                    {"error": f"La pregunta {question_id} es de tipo matriz y requiere una subpregunta."},
-                    status=400
-                )
+            if question.question_type == "matrix" and not subquestion_id:
 
-        # 🔥 Enviar datos al serializador
-        serializer = ResponseSerializer(
-            data=responses_data, many=True, context={'request': request}
-        )
 
+                response_instance = {
+                    "user": user.id,
+                    "survey_attempt": survey_attempt.id,
+                    "question": question_id,
+                    "subquestion": subquestion_id,
+                    "option_selected": option_selected_id,
+                    "other_text": other_text if option and option.is_other else None
+                }
+                responses_data.append(response_instance)
+
+        # 📌 Guardar respuestas
+        serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
         if serializer.is_valid():
-            serializer.save(survey_attempt=survey_attempt)
+            serializer.save()
             return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
 
-        # 🚀 Agrega esta línea para imprimir los errores antes de retornar la respuesta
         print("🔥 DEBUG - Errores en serializer:", serializer.errors)
-
         return Response(serializer.errors, status=400)
+
 
 class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
     """

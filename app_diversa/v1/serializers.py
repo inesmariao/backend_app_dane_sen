@@ -278,6 +278,7 @@ class ResponseSerializer(serializers.Serializer):
         queryset=SurveyAttempt.objects.all(), required=False,
         help_text="Intento de la encuesta asociado a esta respuesta."
     )
+    other_text = serializers.CharField(required=False, allow_blank=True, help_text="Texto ingresado por el usuario cuando selecciona la opción 'Otro'.")
 
     # Campos geográficos
     country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), allow_null=True, required=False)
@@ -291,7 +292,7 @@ class ResponseSerializer(serializers.Serializer):
         fields = [
             "question_id", "subquestion_id", "subquestion", "answer", "option_selected", 
             "options_multiple_selected", 'response_text', "survey_attempt", "country", 
-            "department", "municipality", "new_department", "new_municipality"
+            "department", "municipality", "new_department", "new_municipality", "other_text"
         ]
 
     def validate(self, data):
@@ -301,7 +302,7 @@ class ResponseSerializer(serializers.Serializer):
         print(f"DEBUG: Datos recibidos en validate: {data}")
 
         question_id = data.get("question_id")
-        subquestion_id = data.pop("subquestion_id", None)  # Extraemos y removemos `subquestion_id`
+        subquestion_id = data.pop("subquestion_id", None)
 
         try:
             question = Question.objects.get(id=question_id)
@@ -326,6 +327,21 @@ class ResponseSerializer(serializers.Serializer):
         # Validar que al menos una respuesta sea proporcionada
         if not data.get("answer") and not data.get("option_selected") and not data.get("options_multiple_selected"):
             raise serializers.ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
+
+        # Validación de opciones is_other
+        option = data.get("option_selected")
+        other_text = data.get("other_text")
+
+        if option:
+            if option.is_other and not other_text:
+                raise serializers.ValidationError(
+                    {"other_text": "Debe proporcionar un valor si selecciona la opción 'Otro'."}
+                )
+
+        # Validación de subpregunta is_other
+        subquestion = data.get("subquestion_id")
+        if subquestion and subquestion.is_other and not data.get("other_text"):
+            raise serializers.ValidationError({"other_text": "Debe proporcionar un texto para la subpregunta 'Otro'."})
 
         if question.question_type == 'birth_date':
             if not data.get('response_number'):
