@@ -2,9 +2,6 @@ from rest_framework import serializers
 from datetime import date, datetime
 from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Response, Chapter, SurveyText
 from app_geo.models import Country, Department, Municipality
-import logging # Debug
-
-logger = logging.getLogger(__name__) # Debug
 
 class SurveyAttemptSerializer(serializers.ModelSerializer):
     """
@@ -308,7 +305,6 @@ class ResponseSerializer(serializers.Serializer):
         """
         Validación de los datos antes de guardar la respuesta.
         """
-        print(f"DEBUG: Datos recibidos en validate: {data}")
 
         question_id = data.get("question_id")
         subquestion_id = data.pop("subquestion_id", None)
@@ -389,8 +385,6 @@ class ResponseSerializer(serializers.Serializer):
             if not all(isinstance(opt, Option) for opt in option_ids):
                 raise serializers.ValidationError({"options_multiple_selected": "Debe contener objetos Option válidos."})
 
-        print(f"DEBUG: Finalizando validación con datos: {data}")
-
         return data
 
     def create(self, validated_data):
@@ -418,7 +412,5 @@ class ResponseSerializer(serializers.Serializer):
         # Asignar opciones múltiples seleccionadas si existen
         if options_multiple_selected:
             response.options_multiple_selected.set(options_multiple_selected)
-
-        print(f"DEBUG: Creando respuesta con datos: {validated_data}")
 
         return response

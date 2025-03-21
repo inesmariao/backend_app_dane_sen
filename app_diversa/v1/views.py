@@ -1,4 +1,5 @@
 from django.utils.timezone import now
+from dateutil.relativedelta import relativedelta
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status
@@ -358,23 +359,21 @@ class SubmitResponseView(APIView):
         user = request.user
         data = request.data
 
-        # 🔹 Verificar si data es una lista válida
+        # Verificar si data es una lista válida
         if not isinstance(data, list):
             return Response({"error": "El cuerpo de la solicitud debe ser una lista de respuestas."}, status=400)
 
-        # 🔹 Validar que cada elemento de `data` contenga `question_id`
+        # Validar que cada elemento de `data` contenga `question_id`
         for idx, item in enumerate(data):
             if not isinstance(item, dict):
                 return Response({"error": f"Cada respuesta debe ser un objeto JSON. Error en índice {idx}."}, status=400)
             if "question_id" not in item:
                 return Response({"error": f"Cada respuesta debe contener 'question_id'. Faltante en índice {idx}."}, status=400)
-            
-        print("🔥 DEBUG - Request data:", data)
 
         # Crear diccionario para acceso rápido a respuestas
         responses_dict = {item["question_id"]: item for item in data if "question_id" in item}
 
-        # 📌 Validar pregunta clave: ¿Ha vivido en Colombia los últimos 5 años?
+        # Validar pregunta clave: ¿Ha vivido en Colombia los últimos 5 años?
         response_colombia = responses_dict.get(1)
         if not response_colombia:
             return Response({"error": "Debe responder si ha vivido en Colombia los últimos 5 años."}, status=400)
@@ -401,7 +400,7 @@ class SubmitResponseView(APIView):
                 "rejected": True
             }, status=200)
 
-        # 📌 Validar fecha de nacimiento si responde "Sí"
+        # Validar fecha de nacimiento si responde "Sí"
         response_birth_date = responses_dict.get(2)
         if not response_birth_date:
             return Response({"message": "Debe responder la fecha de nacimiento."}, status=206)
@@ -437,44 +436,39 @@ class SubmitResponseView(APIView):
             birth_date=birth_date
         )
 
-        # 🚀 Procesar respuestas restantes
+        # Procesar respuestas restantes
         responses_data = [item for item in data if "question_id" in item and item["question_id"] not in [1, 2]]
 
-        # 🔹 Obtener todas las preguntas y opciones para optimizar consultas
+        # Obtener todas las preguntas y opciones para optimizar consultas
         questions = {q.id: q for q in Question.objects.all()}
         options = {o.id: o for o in Option.objects.all()}
 
-        # 🚀 Validar que cada respuesta es un diccionario y contiene 'question_id'
+        # Validar que cada respuesta es un diccionario y contiene 'question_id'
         for idx, item in enumerate(data):
             if not isinstance(item, dict):
                 return Response({"error": f"Cada respuesta debe ser un objeto JSON. Error en índice {idx}."}, status=400)
             if "question_id" not in item:
                 return Response({"error": f"Cada respuesta debe contener 'question_id'. Faltante en índice {idx}."}, status=400)
 
-        print("🔥 DEBUG - Validación antes de responses_data:", data)
-
         # Filtrar respuestas asegurando que 'question_id' está presente antes de acceder a él
         responses_data = [item for item in data if item.get("question_id") and item["question_id"] not in [1, 2]]
-        
-        print("🔥 DEBUG - Contenido de responses_data antes del bucle:", responses_data)
 
         for response_data in responses_data:
             subquestion_id = response_data.get("subquestion_id", None)
-            
+
             if subquestion_id and isinstance(subquestion_id, SubQuestion):
                 response_data["subquestion_id"] = subquestion_id.id
-            
+
             if not isinstance(response_data, dict):
                 return Response({"error": "Una de las respuestas no es un objeto JSON válido."}, status=400)
 
             question_id = response_data.get("question_id")
-            
-            print("🔥 DEBUG - Elemento problemático en responses_data:", response_data)
+
 
             if question_id is None:
                 return Response({"error": "Una de las respuestas no tiene 'question_id'."}, status=400)
 
-            # 📌 Manejo de opciones `is_other`
+            # Manejo de opciones `is_other`
             option_selected_id = response_data.get("option_selected")
             other_text = response_data.get("other_text", "").strip()
 
@@ -489,7 +483,7 @@ class SubmitResponseView(APIView):
                 elif not option.is_other:
                     response_data.pop("other_text", None)
 
-            # 📌 Manejo de subpreguntas `is_other`
+            # Manejo de subpreguntas `is_other`
             subquestion_id = response_data.get("subquestion_id")
             if subquestion_id:
                 subquestion = get_object_or_404(SubQuestion, id=subquestion_id)
@@ -498,7 +492,7 @@ class SubmitResponseView(APIView):
                 elif not subquestion.is_other:
                     response_data.pop("other_text", None)
 
-            # 📌 Validación de preguntas tipo matriz
+            # Validación de preguntas tipo matriz
             question = questions.get(question_id)
             if not question:
                 return Response({"error": f"Pregunta con ID {question_id} no encontrada."}, status=400)
@@ -516,13 +510,12 @@ class SubmitResponseView(APIView):
                 }
                 responses_data.append(response_instance)
 
-        # 📌 Guardar respuestas
+        # Guardar respuestas
         serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
 
-        print("🔥 DEBUG - Errores en serializer:", serializer.errors)
         return Response(serializer.errors, status=400)
 
 
@@ -549,7 +542,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
         data.headers = ['ID', 'Usuario', 'Pregunta', 'Respuesta', 'Fecha']
 
         for response in responses:
-            # ✅ Formato corregido: YYYY/MM/DD
+            # Formato YYYY/MM/DD
             formatted_date = response.created_at.strftime('%Y/%m/%d %H:%M:%S')
             data.append([
                 response.id,
@@ -559,7 +552,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
                 formatted_date,
             ])
 
-        # ✅ Exportación en diferentes formatos
+        # Exportación en diferentes formatos
         if format == 'csv':
             response = HttpResponse(data.export('csv'), content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="responses.csv"'
@@ -605,7 +598,6 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
         data = request.data
         responses_data = []
 
-        # 🔥 Obtener preguntas de validación para acceso rápido
         question_live_in_colombia = get_object_or_404(
             Question, text_question="¿Ha vivido en Colombia durante los últimos 5 años?"
         )
@@ -615,11 +607,11 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
 
         responses_dict = {item["question_id"]: item for item in data}
 
-        # 📌 Extraer respuestas clave
+        # Extraer respuestas clave
         live_in_colombia_response = responses_dict.get(question_live_in_colombia.id)
         date_of_birth_response = responses_dict.get(question_date_of_birth.id)
 
-        # ✅ Validar si respondió la residencia en Colombia
+        # Validar si respondió la residencia en Colombia
         if not live_in_colombia_response:
             return DRFResponse(
                 {"error": "Debe responder si ha vivido en Colombia los últimos 5 años."},
@@ -639,7 +631,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
         if not survey_id or not Survey.objects.filter(id=survey_id).exists():
             return DRFResponse({"error": "Encuesta inválida o no existente."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 📌 Caso 1: Si responde "No" → Se rechaza la encuesta
+        # Caso 1: Si responde "No" → Se rechaza la encuesta
         if live_in_colombia_opcion.text_option.lower() == "no":
             SurveyAttempt.objects.create(
                 user=user,
@@ -649,7 +641,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
             )
             return DRFResponse({"message": "No cumple con los requisitos para la encuesta."}, status=status.HTTP_403_FORBIDDEN)
 
-        # 📌 Caso 2: Si responde "Sí" pero no proporciona fecha de nacimiento
+        # Caso 2: Si responde "Sí" pero no proporciona fecha de nacimiento
         if not date_of_birth_response or not date_of_birth_response.get("answer"):
             return DRFResponse(
                 {"error": "Debe ingresar su fecha de nacimiento en formato YYYY-MM-DD."},
@@ -657,7 +649,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         try:
-            # ✅ Formato corregido a YYYY-MM-DD
+            # Formato corregido a YYYY-MM-DD
             birth_date = datetime.strptime(date_of_birth_response["answer"], "%Y-%m-%d").date()
             age = relativedelta(now(), birth_date).years
 
@@ -674,7 +666,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
         except ValueError:
             return DRFResponse({"error": "Formato de fecha inválido. Debe ser YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 📌 Caso 3: Si cumple con los requisitos → Crear intento de encuesta
+        # Caso 3: Si cumple con los requisitos → Crear intento de encuesta
         survey_attempt = SurveyAttempt.objects.create(
             user=user,
             survey_id=survey_id,
@@ -682,7 +674,7 @@ class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
             birth_date=birth_date
         )
 
-        # 🚀 Guardar respuestas restantes
+        # Guardar respuestas restantes
         responses_data = [item for item in data if item["question_id"] not in [question_live_in_colombia.id, question_date_of_birth.id]]
 
         serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
