@@ -396,7 +396,10 @@ class SubmitResponseView(APIView):
                 has_lived_in_colombia=False,
                 rejection_note="El usuario no ha vivido en Colombia los últimos 5 años."
             )
-            return Response({"message": "No cumple con los requisitos para la encuesta."}, status=403)
+            return Response({
+                "message": "No cumple con los requisitos para la encuesta.",
+                "rejected": True
+            }, status=200)
 
         # 📌 Validar fecha de nacimiento si responde "Sí"
         response_birth_date = responses_dict.get(2)
@@ -422,7 +425,10 @@ class SubmitResponseView(APIView):
                 birth_date=birth_date,
                 rejection_note=f"El usuario tiene {age} años y no cumple con la edad mínima."
             )
-            return Response({"message": "No cumple con los requisitos de edad."}, status=403)
+            return Response({
+                "message": "No cumple con los requisitos de edad.",
+                "rejected": True
+            }, status=200)
 
         survey_attempt = SurveyAttempt.objects.create(
             user=user,
@@ -452,9 +458,12 @@ class SubmitResponseView(APIView):
         
         print("🔥 DEBUG - Contenido de responses_data antes del bucle:", responses_data)
 
-
-
         for response_data in responses_data:
+            subquestion_id = response_data.get("subquestion_id", None)
+            
+            if subquestion_id and isinstance(subquestion_id, SubQuestion):
+                response_data["subquestion_id"] = subquestion_id.id
+            
             if not isinstance(response_data, dict):
                 return Response({"error": "Una de las respuestas no es un objeto JSON válido."}, status=400)
 

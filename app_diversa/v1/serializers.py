@@ -295,6 +295,15 @@ class ResponseSerializer(serializers.Serializer):
             "department", "municipality", "new_department", "new_municipality", "other_text"
         ]
 
+    def validate_subquestion_id(self, value):
+        """Valida que subquestion_id sea un número entero y no un objeto SubQuestion"""
+
+        if isinstance(value, SubQuestion):
+            return value.id
+        elif not isinstance(value, int):
+            raise serializers.ValidationError("subquestion_id debe ser un número entero")
+        return value
+
     def validate(self, data):
         """
         Validación de los datos antes de guardar la respuesta.

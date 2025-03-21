@@ -525,9 +525,13 @@ class Response(models.Model):
 
         if self.question.question_type == 'matrix' and not self.subquestion:
             raise ValidationError("Las preguntas tipo matriz requieren una subpregunta asociada.")
+        
+        # Permitir que other_text sea None para preguntas tipo matrix
+        if self.question.question_type == 'matrix' and self.other_text is None:
+            pass
 
         if self.question.question_type == 'multiple':
-            if not self.pk:  # Evita acceder a ManyToMany antes de que el objeto se guarde
+            if not self.pk:
                 return
             if not self.options_multiple_selected.all():
                 raise ValidationError("Debe seleccionar al menos una opción para preguntas de selección múltiple.")
