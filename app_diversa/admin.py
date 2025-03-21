@@ -18,7 +18,6 @@ class SurveyAdmin(admin.ModelAdmin):
     list_filter = ('created_at', 'updated_at')
     ordering = ('-created_at',)
 
-
 @admin.register(Chapter)
 class ChapterAdmin(admin.ModelAdmin):
     """
@@ -29,7 +28,6 @@ class ChapterAdmin(admin.ModelAdmin):
     search_fields = ('name', 'survey__name', 'description')
     list_filter = ('survey', 'created_at')
     ordering = ('-created_at',)
-    autocomplete_fields = ('survey',)
 
 @admin.register(SubQuestion)
 class SubQuestionAdmin(admin.ModelAdmin):
@@ -42,9 +40,8 @@ class SubQuestionAdmin(admin.ModelAdmin):
     )
     list_display_links = ('text_subquestion',)
     search_fields = ('custom_identifier', 'text_subquestion', 'instruction', 'parent_question__text_question')
-    list_filter = ('parent_question', 'is_other', 'created_at')
+    list_filter = ('parent_question__survey', 'is_other', 'created_at')
     ordering = ('subquestion_order',)
-    autocomplete_fields = ('parent_question',)
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
@@ -71,16 +68,24 @@ class OptionAdmin(admin.ModelAdmin):
     """
     Configuración para gestionar opciones (Option) asociadas a preguntas o subpreguntas.
     """
+    def get_question_id(self, obj):
+        return obj.question.id if obj.question else None
+
+    def get_subquestion_id(self, obj):
+        return obj.subquestion.id if obj.subquestion else None
+
+    get_question_id.short_description = "Question ID"
+    get_subquestion_id.short_description = "SubQuestion ID"
+
     list_display = (
-        'text_option', 'note', 'is_other', 'question', 'subquestion', 'question_id', 'subquestion_id', 'order_option', 'created_at'
+        'text_option', 'note', 'is_other', 'question', 'subquestion',
+        'get_question_id', 'get_subquestion_id', 'order_option', 'created_at'
     )
     readonly_fields = ('question_id', 'subquestion_id')
     list_display_links = ('text_option',)
     search_fields = ('text_option', 'note', 'question__text_question', 'subquestion__text_subquestion')
     list_filter = ('is_other', 'created_at')
     ordering = ('-created_at',)
-    autocomplete_fields = ('question', 'subquestion')
-
 
 @admin.register(SurveyText)
 class SurveyTextAdmin(admin.ModelAdmin):
@@ -100,20 +105,17 @@ class ResponseAdmin(admin.ModelAdmin):
     Configuración para gestionar respuestas (Response) asociadas a preguntas.
     """
     list_display = (
-        'user', 'question', 'response_text', 'response_number',
-        'option_selected', 'options_multiple_selected',
+        'user', 'question', 'subquestion', 'response_text', 'response_number',
+        'option_selected',
         'country', 'department', 'municipality',
         'new_department', 'new_municipality',
         'created_at'
     )
     list_display_links = ('user', 'question')
     search_fields = (
-        'user__email', 'question__text_question', 'response_text',
-        'option_selected__text_option', 'new_department__name', 'new_municipality__name'
+        'user__email', 'question__text_question', 'subquestion__text_subquestion',
+        'response_text', 'option_selected__text_option', 'new_department__name', 'new_municipality__name'
     )
     list_filter = ('created_at', 'department', 'municipality', 'new_department', 'new_municipality')
     ordering = ('-created_at',)
-    autocomplete_fields = (
-        'question', 'option_selected', 'country', 'department',
-        'municipality', 'new_department', 'new_municipality'
-    )
+

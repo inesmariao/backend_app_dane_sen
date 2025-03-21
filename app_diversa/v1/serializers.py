@@ -115,7 +115,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         return value
 
     def get_geography_options(self, obj):
-        if obj.is_geographic:
+        if obj.is_geographic and obj.geography_type:  # Verificar si geography_type no es None
             if obj.geography_type not in ['COUNTRY', 'DEPARTMENT', 'MUNICIPALITY']:
                 raise serializers.ValidationError("Tipo de lugar inválido.")
 
@@ -259,15 +259,16 @@ class SurveySerializer(serializers.ModelSerializer):
 
 class ResponseSerializer(serializers.Serializer):
     question_id = serializers.IntegerField(help_text="ID de la pregunta a la que corresponde la respuesta.")
+    subquestion_id = serializers.PrimaryKeyRelatedField(
+        queryset=SubQuestion.objects.all(), allow_null=True, required=False,
+        help_text="ID de la subpregunta asociada (solo para preguntas tipo matriz)."
+    )
     answer = serializers.CharField(required=False, allow_blank=True, help_text="Texto ingresado en una pregunta abierta.")
     option_selected = serializers.PrimaryKeyRelatedField(
         queryset=Option.objects.all(), allow_null=True, required=False,
         help_text="Opción seleccionada en preguntas cerradas."
     )
-    options_multiple_selected = serializers.ListField(
-        child=serializers.IntegerField(), allow_null=True, allow_empty=True, required=False,
-        help_text="Lista de opciones seleccionadas en preguntas de selección múltiple."
-    )
+    options_multiple_selected = serializers.PrimaryKeyRelatedField(many=True, queryset=Option.objects.all(), required=False)
     survey_attempt = serializers.PrimaryKeyRelatedField(
         queryset=SurveyAttempt.objects.all(), required=False,
         help_text="Intento de la encuesta asociado a esta respuesta."
@@ -277,74 +278,88 @@ class ResponseSerializer(serializers.Serializer):
     country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), allow_null=True, required=False)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), allow_null=True, required=False)
     municipality = serializers.PrimaryKeyRelatedField(queryset=Municipality.objects.all(), allow_null=True, required=False)
-    new_department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), allow_null=True, required=False)
-    new_municipality = serializers.PrimaryKeyRelatedField(queryset=Municipality.objects.all(), allow_null=True, required=False)
+    new_department = serializers.IntegerField(allow_null=True, required=False)
+    new_municipality = serializers.IntegerField(allow_null=True, required=False)
 
     class Meta:
         model = Response
         fields = [
-            "question_id", "answer", "option_selected", "options_multiple_selected",
-            "survey_attempt", "country", "department", "municipality",
-            "new_department", "new_municipality"
+            "question_id", "subquestion_id", "answer", "option_selected", "options_multiple_selected",
+            "survey_attempt", "country", "department", "municipality", "new_department", "new_municipality"
         ]
 
     def validate(self, data):
         """
         Validación de los datos antes de guardar la respuesta.
         """
+        print(f"DEBUG: Datos recibidos en validate: {data}") 
+
+        question_id = data.get("question_id")
+
         try:
-            question = Question.objects.get(id=data['question_id'])
+            question = Question.objects.get(id=question_id)
         except Question.DoesNotExist:
-            raise serializers.ValidationError({"question_id": f"ID de pregunta inválido: {data['question_id']} no existe."})
+            raise serializers.ValidationError({"question_id": f"ID de pregunta inválido: {question_id} no existe."})
+        
+        # Si la pregunta es de selección múltiple, `options_multiple_selected` debe tener datos
+        if question.is_multiple and not data.get("options_multiple_selected"):
+            raise serializers.ValidationError("Debe seleccionar al menos una opción en preguntas de selección múltiple.")
+
+        # Validar que al menos una respuesta sea proporcionada
+        if not data.get("answer") and not data.get("option_selected") and not data.get("options_multiple_selected"):
+            raise serializers.ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
+
 
         if question.question_type == 'birth_date':
             if not data.get('response_number'):
                 raise serializers.ValidationError("Debe seleccionar una fecha de nacimiento válida.")
 
-        # Si la pregunta NO es geográfica, no necesita validación extra
-        if not question.is_geographic:
-            return data
-        
+        # Validación de subpregunta en preguntas tipo matriz
+        if question.question_type == 'matrix' and not data.get("subquestion_id"):
+            raise serializers.ValidationError({"subquestion_id": "Las preguntas tipo matriz requieren una subpregunta asociada."})
+
+
+        # Validación para preguntas geográficas
+        if question.is_geographic and question.id != 8:
+            if not data.get("department"):
+                raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
+            if not data.get("municipality"):
+                raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
+
+            # if data.get("option_selected") and data["option_selected"].text_option.lower() != "no":
+            #     if question.geography_type == 'DEPARTMENT' and not data.get('department'):
+            #         raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
+            #     if question.geography_type == 'MUNICIPALITY' and not data.get('municipality'):
+            #         raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
+
+        # Validación de `option_selected` antes de acceder a sus propiedades
         option = data.get('option_selected')
-        
-        # Validación para preguntas geográficas:
-        if not option:
-            raise serializers.ValidationError({"option_selected": "Debe seleccionar una opción para preguntas geográficas."})
+        if option:
+            # Validación de opciones geográficas
+            if option.option_type == 'COUNTRY' and not data.get('country'):
+                raise serializers.ValidationError({"country": "Debe seleccionar un país."})
+            elif option.option_type == 'DEPARTMENT' and not data.get('department'):
+                raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
+            elif option.option_type == 'MUNICIPALITY' and not data.get('municipality'):
+                raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
 
-        if option.text_option.strip().lower() == "no":
-            data['country'] = None
-            data['department'] = None
-            data['municipality'] = None
-            return data
-        
-        # Caso especial: Pregunta 7
-        if data['question_id'] == 7 and option.text_option.strip().lower() == "sí":
-            if not data.get('new_department'):
-                raise serializers.ValidationError({"new_department": "Debe seleccionar un nuevo departamento."})
-            if not data.get('new_municipality'):
-                raise serializers.ValidationError({"new_municipality": "Debe seleccionar un nuevo municipio."})
-            return data
-
-        # Validación para las demás preguntas geográficas:
-        if option.option_type == 'COUNTRY' and not data.get('country'):
-            raise serializers.ValidationError({"country": "Debe seleccionar un país."})
-        elif option.option_type == 'DEPARTMENT' and not data.get('department'):
-            raise serializers.ValidationError({"department": "Debe seleccionar un departamento."})
-        elif option.option_type == 'MUNICIPALITY' and not data.get('municipality'):
-            raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio."})
-
-
-        if 'country' in data and data['country'] and data['country'].numeric_code == 170:  # Colombia
-            if option.option_type != 'COUNTRY':
-                if 'department' not in data or data['department'] is None:
+        # Validación específica para Colombia
+        if data.get("country") and data["country"].numeric_code == 170:  # Colombia
+            if option and option.option_type != 'COUNTRY':
+                if not data.get("department"):
                     raise serializers.ValidationError({"department": "Debe seleccionar un departamento para Colombia."})
-                if 'municipality' not in data or data['municipality'] is None:
+                if not data.get("municipality"):
                     raise serializers.ValidationError({"municipality": "Debe seleccionar un municipio para Colombia."})
 
-        if 'options_multiple_selected' in data and data['options_multiple_selected']:
-            for option_id in data['options_multiple_selected']:
-                if not Option.objects.filter(id=option_id).exists():
-                    raise serializers.ValidationError(f"La opción con ID {option_id} no existe.")
+        # Validar selección múltiple
+        if "options_multiple_selected" in data:
+            option_ids = data["options_multiple_selected"]
+
+            # En este punto, Django ya ha convertido los IDs en objetos Option, así que verificamos:
+            if not all(isinstance(opt, Option) for opt in option_ids):
+                raise serializers.ValidationError({"options_multiple_selected": "Debe contener objetos Option válidos."})
+
+        print(f"DEBUG: Finalizando validación con datos: {data}")
 
         return data
 
@@ -352,33 +367,86 @@ class ResponseSerializer(serializers.Serializer):
         """
         Creación de la respuesta asegurando que se asocie a un `survey_attempt`.
         """
-        user = self.context['request'].user
-        question = Question.objects.get(id=validated_data['question_id'])
-
-        # Si la pregunta es la 8 y la opción es "Sí", usar `new_department` y `new_municipality`
-        if question.id == 8 and validated_data.get('option_selected') and validated_data['option_selected'].text_option.strip().lower() == "sí":
-            department = validated_data.get('new_department')
-            municipality = validated_data.get('new_municipality')
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            validated_data['user'] = request.user
         else:
-            # Para otras preguntas, usar los campos normales
-            department = validated_data.get('department')
-            municipality = validated_data.get('municipality')
+            raise serializers.ValidationError({"user": "El usuario es obligatorio."})
+    
+        options_multiple_selected = validated_data.pop('options_multiple_selected', [])
 
-        # Extraer instancias de los campos relacionados
-        country = validated_data.pop('country', None)
+        # Primero, crea y guarda la instancia de Response
+        response = Response.objects.create(**validated_data)
 
-        # Crear la respuesta usando los IDs
+        # Ahora que `response` tiene un ID, se pueden asignar las opciones múltiples
+        if options_multiple_selected:
+            response.options_multiple_selected.set(options_multiple_selected)
+
+        print(f"DEBUG: Creando respuesta con datos: {validated_data}")
+
+        user = request.user if request and request.user.is_authenticated else None
+
+        if not user:
+            raise serializers.ValidationError("El usuario es obligatorio para guardar la respuesta.")
+
+        question = Question.objects.get(id=validated_data["question_id"])
+        subquestion = validated_data.get("subquestion_id", None)
+        survey_attempt = validated_data.get("survey_attempt", None)
+
+        # Django ya ha convertido los IDs en objetos, así que no es necesario hacer más conversiones.
+        options_multiple_selected_objects = validated_data.pop("options_multiple_selected", [])
+
+
+        # validated_data["user"] = user
+        # validated_data["question"] = question
+        
+        
+        # if subquestion:
+        #     validated_data["subquestion"] = subquestion
+        # else:
+        #     validated_data.pop("subquestion_id", None)
+        
+        print(f"DEBUG: Guardando respuesta - Pregunta ID: {question.id} ({question.question_type})")
+        print(f"DEBUG: Subpregunta ID: {subquestion.id if subquestion else 'None'}")
+
+        # # Pregunta 8: Guardar en new_department y new_municipality
+        # if question.id == 8:
+        #     response = Response.objects.create(
+        #         user=user,
+        #         question=question,
+        #         survey_attempt=validated_data.get("survey_attempt"),
+        #         country=validated_data.get("country"),
+        #         new_department=validated_data.get("new_department", None),
+        #         new_municipality=validated_data.get("new_municipality", None),
+        #         option_selected=validated_data.get("option_selected"),
+        #     )
+        # else:
+        #     # Para otras preguntas, usar los campos normales
+        #     response = Response.objects.create(
+        #         user=user,
+        #         question=question,
+        #         survey_attempt=validated_data.get("survey_attempt"),
+        #         country=validated_data.get("country"),
+        #         department=validated_data.get("department"),
+        #         municipality=validated_data.get("municipality"),
+        #         option_selected=validated_data.get("option_selected"),
+        #     )
+
         response = Response.objects.create(
-            user=user,
-            question=question,
-            survey_attempt=validated_data.get("survey_attempt"),
-            country=validated_data.get('country'),
-            department=department,
-            municipality=municipality,
-            response_text=validated_data.get('answer') if isinstance(validated_data.get('answer'), str) else None,
-            response_number=validated_data.get('answer') if isinstance(validated_data.get('answer'), int) else None,
-            option_selected=validated_data.get('option_selected'),
-            options_multiple_selected=validated_data.get('options_multiple_selected', [])
-        )
+        user=user,
+        question=question,
+        subquestion=subquestion,
+        survey_attempt=survey_attempt,
+        country=validated_data.get("country"),
+        department=validated_data.get("department"),
+        municipality=validated_data.get("municipality"),
+        new_department=validated_data.get("new_department", None),
+        new_municipality=validated_data.get("new_municipality", None),
+        option_selected=validated_data.get("option_selected"),
+    )
+
+        # Guardar opciones múltiples sin conversión
+        if options_multiple_selected_objects:
+            response.options_multiple_selected.set(options_multiple_selected_objects)
 
         return response

@@ -116,7 +116,8 @@ class Question(models.Model):
         ('likert', 'Escala Likert'),
         ('rating', 'Escala de Puntuación'),
         ('matrix', 'Pregunta Matricial'),
-        ('birth_date', 'Fecha de Nacimiento')
+        ('birth_date', 'Fecha de Nacimiento'),
+        ('multiple', 'Respuesta múltiple')
     ]
     
     MATRIX_LAYOUT_CHOICES = [
@@ -401,6 +402,7 @@ class Response(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
+        null=False, blank=False,
         related_name='responses',
         help_text="Usuario que proporcionó esta respuesta."
     )
@@ -416,6 +418,13 @@ class Response(models.Model):
         on_delete=models.CASCADE,
         related_name='responses',
         help_text="Pregunta a la que corresponde esta respuesta."
+    )
+    subquestion = models.ForeignKey(
+        SubQuestion,
+        on_delete=models.CASCADE,
+        related_name='responses',
+        null=True, blank=True,
+        help_text="Subpregunta a la que corresponde esta respuesta. Puede ser nulo si la respuesta es para una pregunta principal."
     )
     country = models.ForeignKey(
         Country,
@@ -436,19 +445,13 @@ class Response(models.Model):
         help_text="Municipio seleccionado."
     )
     # Campos para la pregunta 8: "¿Ha cambiado de municipio de residencia en los últimos cinco años?"
-    new_department = models.ForeignKey(
-        Department,
-        on_delete=models.SET_NULL,
-        blank=True, null=True,
-        related_name='responses_new_departments',
-        help_text="Nuevo departamento seleccionado (pregunta 8)."
+    new_department = models.IntegerField(
+        null=True, blank=True,
+        help_text="ID del nuevo departamento seleccionado (pregunta 8)."
     )
-    new_municipality = models.ForeignKey(
-        Municipality,
-        on_delete=models.SET_NULL,
-        blank=True, null=True,
-        related_name='responses_new_municipalities',
-        help_text="Nuevo municipio seleccionado (pregunta 8)."
+    new_municipality = models.IntegerField(
+        null=True, blank=True,
+        help_text="ID del nuevo municipio seleccionado (pregunta 8)."
     )
     response_text = models.TextField(
         null=True, blank=True,
@@ -465,12 +468,13 @@ class Response(models.Model):
     option_selected = models.ForeignKey(
         'Option',
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True, blank=True, related_name="response_option_selected",
         help_text="Opción seleccionada para preguntas cerradas. Opcional."
     )
-    options_multiple_selected = JSONField(
-        null=True, blank=True,
-        help_text="Opciones seleccionadas para preguntas de selección múltiple (almacenadas como JSON)."
+    options_multiple_selected = models.ManyToManyField(
+        'Option',
+        blank=True, related_name="response_options_multiple_selected",
+        help_text="Opciones seleccionadas para preguntas de selección múltiple."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -497,7 +501,7 @@ class Response(models.Model):
         Validaciones personalizadas para asegurar que las respuestas cumplan con los requisitos según el tipo de pregunta.
         """
         if (self.response_number is not None and self.response_text is not None) or \
-       (self.response_number is None and self.response_text is None and self.option_selected is None):
+        (self.response_number is None and self.response_text is None and self.option_selected is None and not self.options_multiple_selected):
             raise ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
 
         if self.question.question_type == 'open' and not self.response_text:
@@ -509,21 +513,41 @@ class Response(models.Model):
         if self.question.question_type == 'closed' and self.question.is_multiple and not self.options_multiple_selected:
             raise ValidationError("Debe seleccionar al menos una opción para preguntas de selección múltiple.")
 
-        if self.options_multiple_selected:
+        if self.pk and self.options_multiple_selected:
             if not isinstance(self.options_multiple_selected, list) or not all(isinstance(option, int) for option in self.options_multiple_selected):
                 raise ValidationError("El campo `options_multiple_selected` debe ser una lista de IDs enteros.")
 
+        if not self.question and not self.subquestion:
+            raise ValidationError("La respuesta debe estar asociada a una pregunta o a una subpregunta.")
+
+        if self.question and self.subquestion and self.subquestion.parent_question_id != self.question.id:
+            raise ValidationError("La subpregunta debe pertenecer a la pregunta asociada.")
+
+        if self.question.question_type == 'matrix' and not self.subquestion:
+            raise ValidationError("Las preguntas tipo matriz requieren una subpregunta asociada.")
+
+        if self.question.question_type == 'multiple':
+            if not self.pk:  # Evita acceder a ManyToMany antes de que el objeto se guarde
+                return
+            if not self.options_multiple_selected.all():
+                raise ValidationError("Debe seleccionar al menos una opción para preguntas de selección múltiple.")
+
         super().clean()
+
 
     def save(self, *args, **kwargs):
         """
         Refuerzo de validación en `save()`, asegurando que no se guarden `response_text` y `response_number` al mismo tiempo.
         """
-        self.clean()
-        super().save(*args, **kwargs)
+
+        super().save(*args, **kwargs)  # Guarda el objeto primero
+
+        # Validación post-guardado para preguntas múltiples
+        if self.question.question_type == 'multiple' and not self.options_multiple_selected.exists():
+            raise ValidationError("Debe seleccionar al menos una opción para preguntas de selección múltiple.")
 
     def __str__(self):
-        return f"Respuesta de {self.user} a {self.question.text_question}"
+        return f"Respuesta de {self.user} a {self.question.text_question}" + (f" - {self.subquestion.text_subquestion}" if self.subquestion else "")
 
 
 class SurveyText(models.Model):
