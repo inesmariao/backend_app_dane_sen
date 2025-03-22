@@ -7,11 +7,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response as DRFResponse
 from rest_framework.serializers import ValidationError as DRFValidationError
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Chapter, SurveyText
+from ..models import SurveyAttempt, Survey, Question, SubQuestion, Option, Chapter, SurveyText, SystemMessage
 from ..models import Response as ModelResponse
 from .serializers import SurveyAttemptSerializer, SurveySerializer, QuestionSerializer, SubQuestionSerializer, OptionSerializer, ResponseSerializer, ChapterSerializer, SurveyTextSerializer
 from app_geo.models import Country, Department, Municipality
@@ -19,6 +19,18 @@ import tablib
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 from datetime import date, datetime
+
+
+@api_view(['GET'])
+def get_message_by_key(request, key):
+    try:
+        message = SystemMessage.objects.get(key=key, is_active=True)
+        return Response({
+            "title": message.title,
+            "content": message.content
+        })
+    except SystemMessage.DoesNotExist:
+        return Response({"error": "Mensaje no encontrado."}, status=404)
 
 
 class WelcomeView(APIView):

@@ -583,3 +583,14 @@ class SurveyText(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class SystemMessage(models.Model):
+    key = models.CharField(max_length=100, unique=True, help_text="Identificador del mensaje (ej: success_message, rejection_msg_1)")
+    title = models.CharField(max_length=255, help_text="Título del mensaje")
+    content = models.TextField(help_text="Contenido HTML del mensaje")
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.key
+

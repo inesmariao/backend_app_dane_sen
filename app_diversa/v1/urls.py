@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import WelcomeView, SurveyViewSet, QuestionViewSet, OptionViewSet, SubmitResponseView, ChapterViewSet, SurveyTextViewSet, ResponseViewSet, SaveGeographicResponseView
+from .views import WelcomeView, SurveyViewSet, QuestionViewSet, OptionViewSet, SubmitResponseView, ChapterViewSet, SurveyTextViewSet, ResponseViewSet, SaveGeographicResponseView, get_message_by_key
 
 # Configuración del router
 router = DefaultRouter()
@@ -19,6 +19,9 @@ urlpatterns = [
 
     # Rutas de exportación de respuestas
     path('responses/export/<str:format>/', ResponseViewSet.as_view({'get': 'export'}), name='export-responses'),
+    
+    # Ruta para mostrar mensajes del sistema
+    path("messages/<str:key>/", get_message_by_key),
 
     # Rutas generadas automáticamente por el router
     path('', include(router.urls)),

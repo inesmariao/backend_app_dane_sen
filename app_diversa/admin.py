@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SurveyAttempt, Survey, Chapter, Question, SubQuestion, Option, SurveyText, Response
+from .models import SurveyAttempt, Survey, Chapter, Question, SubQuestion, Option, SurveyText, Response, SystemMessage
 
 @admin.register(SurveyAttempt)
 class SurveyAttemptAdmin(admin.ModelAdmin):
@@ -17,6 +17,13 @@ class SurveyAdmin(admin.ModelAdmin):
     search_fields = ('name', 'title', 'description_name', 'description_title')
     list_filter = ('created_at', 'updated_at')
     ordering = ('-created_at',)
+
+
+@admin.register(SystemMessage)
+class SystemMessageAdmin(admin.ModelAdmin):
+    list_display = ('key', 'title', 'is_active')
+    search_fields = ('key', 'title')
+
 
 @admin.register(Chapter)
 class ChapterAdmin(admin.ModelAdmin):
