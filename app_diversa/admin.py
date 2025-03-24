@@ -113,16 +113,14 @@ class ResponseAdmin(admin.ModelAdmin):
     """
     list_display = (
         'user', 'question', 'subquestion', 'response_text', 'response_number',
-        'option_selected',
-        'country', 'department', 'municipality',
-        'new_department', 'new_municipality',
+        'option_selected', 'country', 'department', 'municipality',
         'created_at'
     )
     list_display_links = ('user', 'question')
     search_fields = (
         'user__email', 'question__text_question', 'subquestion__text_subquestion',
-        'response_text', 'option_selected__text_option', 'new_department__name', 'new_municipality__name'
+        'response_text', 'option_selected__text_option'
     )
-    list_filter = ('created_at', 'department', 'municipality', 'new_department', 'new_municipality')
+    list_filter = ('created_at', 'department', 'municipality')
     ordering = ('-created_at',)
 

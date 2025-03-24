@@ -4,10 +4,10 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response as DRFResponse
 from rest_framework.serializers import ValidationError as DRFValidationError
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -22,6 +22,7 @@ from datetime import date, datetime
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_message_by_key(request, key):
     try:
         message = SystemMessage.objects.get(key=key, is_active=True)

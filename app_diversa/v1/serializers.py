@@ -281,15 +281,13 @@ class ResponseSerializer(serializers.Serializer):
     country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), allow_null=True, required=False)
     department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(), allow_null=True, required=False)
     municipality = serializers.PrimaryKeyRelatedField(queryset=Municipality.objects.all(), allow_null=True, required=False)
-    new_department = serializers.IntegerField(allow_null=True, required=False)
-    new_municipality = serializers.IntegerField(allow_null=True, required=False)
 
     class Meta:
         model = Response
         fields = [
-            "question_id", "subquestion_id", "subquestion", "answer", "option_selected", 
-            "options_multiple_selected", 'response_text', "survey_attempt", "country", 
-            "department", "municipality", "new_department", "new_municipality", "other_text"
+            "question_id", "subquestion_id", "subquestion", "answer", "option_selected",
+            "options_multiple_selected", 'response_text', "survey_attempt", "country",
+            "department", "municipality", "other_text"
         ]
 
     def validate_subquestion_id(self, value):

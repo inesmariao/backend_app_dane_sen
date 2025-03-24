@@ -444,15 +444,6 @@ class Response(models.Model):
         blank=True, null=True,
         help_text="Municipio seleccionado."
     )
-    # Campos para la pregunta 8: "¿Ha cambiado de municipio de residencia en los últimos cinco años?"
-    new_department = models.IntegerField(
-        null=True, blank=True,
-        help_text="ID del nuevo departamento seleccionado (pregunta 8)."
-    )
-    new_municipality = models.IntegerField(
-        null=True, blank=True,
-        help_text="ID del nuevo municipio seleccionado (pregunta 8)."
-    )
     response_text = models.TextField(
         null=True, blank=True,
         help_text="Texto proporcionado como respuesta. Opcional."
