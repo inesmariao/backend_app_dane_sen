@@ -329,7 +329,10 @@ class ResponseSerializer(serializers.Serializer):
 
         # Validar que al menos una respuesta sea proporcionada
         if not data.get("answer") and not data.get("option_selected") and not data.get("options_multiple_selected"):
-            raise serializers.ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
+            # excepción: si la subpregunta es 'is_other' y hay other_text
+            subq = data.get("subquestion")
+            if not (subq and subq.is_other and data.get("other_text")):
+                raise serializers.ValidationError("Debe proporcionar una respuesta válida: texto, número o seleccionar una opción.")
 
         # Validación de opciones is_other
         option = data.get("option_selected")

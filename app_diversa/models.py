@@ -1,8 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db.models import JSONField
-from datetime import date
+from unidecode import unidecode
 from app_geo.models import Country, Department, Municipality
 
 class Survey(models.Model):
@@ -66,6 +65,10 @@ class SurveyAttempt(models.Model):
     rejection_note = models.CharField(
         max_length=255, null=True, blank=True,
         help_text="Razón por la cual el usuario fue rechazado si no cumple con los requisitos."
+    )
+    success_note = models.TextField(
+        null=True, blank=True,
+        help_text="Mensaje de éxito si se enviaron satisfactoriamente todas las respuestas de la encuesta."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -448,9 +451,18 @@ class Response(models.Model):
         null=True, blank=True,
         help_text="Texto proporcionado como respuesta. Opcional."
     )
+    normalized_response_text = models.TextField(
+        null=True, blank=True,
+        editable=False, help_text="Texto de respuesta (response_text) normalizado en minúsculas y sin tildes."
+    )
     other_text = models.TextField(
         null=True, blank=True,
         help_text="Texto ingresado por el usuario cuando selecciona la opción 'Otro'."
+    )
+    normalized_other_text = models.TextField(
+        null=True, blank=True,
+        editable=False,
+        help_text="Texto 'otro' en minúsculas y sin tildes para análisis."
     )
     response_number = models.IntegerField(
         null=True, blank=True,
@@ -474,7 +486,7 @@ class Response(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, help_text="Fecha y hora en que se actualizó la respuesta."
     )
-    
+
     @property
     def country_code(self):
         return self.country.numeric_code if self.country else None
@@ -534,6 +546,11 @@ class Response(models.Model):
         """
         Refuerzo de validación en `save()`, asegurando que no se guarden `response_text` y `response_number` al mismo tiempo.
         """
+        
+        if self.other_text:
+            self.normalized_other_text = unidecode(self.other_text.lower())
+        if self.response_text:
+            self.normalized_response_text = unidecode(self.response_text.lower())
 
         super().save(*args, **kwargs)  # Guarda el objeto primero
 

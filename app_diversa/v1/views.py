@@ -446,7 +446,8 @@ class SubmitResponseView(APIView):
             user=user,
             survey_id=survey_id,
             has_lived_in_colombia=True,
-            birth_date=birth_date
+            birth_date=birth_date,
+            success_note="Encuesta diligenciada con éxito"
         )
 
         # Procesar respuestas restantes
@@ -492,7 +493,7 @@ class SubmitResponseView(APIView):
                     return Response({"error": f"La opción con ID {option_selected_id} no existe."}, status=400)
 
                 if option.is_other and not other_text:
-                    return Response({"error": f"Debe proporcionar un texto para la opción 'Otro' en la pregunta {question_id}."}, status=400)
+                    response_data["other_text"] = "Opción Otro sin responder"
                 elif not option.is_other:
                     response_data.pop("other_text", None)
 
@@ -501,7 +502,7 @@ class SubmitResponseView(APIView):
             if subquestion_id:
                 subquestion = get_object_or_404(SubQuestion, id=subquestion_id)
                 if subquestion.is_other and not other_text:
-                    return Response({"error": f"Debe proporcionar un texto para la subpregunta 'Otro' en la pregunta {question_id}."}, status=400)
+                    response_data["other_text"] = "Opción Otro sin responder"
                 elif not subquestion.is_other:
                     response_data.pop("other_text", None)
 
@@ -524,12 +525,42 @@ class SubmitResponseView(APIView):
                 responses_data.append(response_instance)
 
         # Guardar respuestas
-        serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
-        if serializer.is_valid():
+        # Debug descomentar esto al finalizar
+        # serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
+        # if serializer.is_valid():
+        #     serializer.save()
+        #     return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
+
+        # return Response(serializer.errors, status=400)
+        
+        # Debug - eliminar este código al finalizar el debug
+
+        print("📦 Datos recibidos para guardar respuestas:") #Debug
+        for item in responses_data:
+            print(item)
+        
+        # try:
+        #     serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
+        #     serializer.is_valid(raise_exception=True)
+        #     serializer.save()
+        #     return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
+        # except DRFValidationError as e:
+        #     print("❌ Error de validación en ResponseSerializer:")
+        #     print(e.detail)
+        #     return Response({"error": str(e.detail)}, status=400)
+        
+        try:
+            for item in responses_data:
+                item["survey_attempt"] = survey_attempt.id
+
+            serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
+            serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
-
-        return Response(serializer.errors, status=400)
+        except DRFValidationError as e:
+            print("❌ Error de validación en ResponseSerializer:")  # Debug
+            print(e.detail) # Debug
+            return Response({"error": str(e.detail)}, status=400)
 
 
 class ResponseViewSet(viewsets.ReadOnlyModelViewSet):
