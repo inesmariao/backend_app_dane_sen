@@ -524,31 +524,6 @@ class SubmitResponseView(APIView):
                 }
                 responses_data.append(response_instance)
 
-        # Guardar respuestas
-        # Debug descomentar esto al finalizar
-        # serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
-        # if serializer.is_valid():
-        #     serializer.save()
-        #     return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
-
-        # return Response(serializer.errors, status=400)
-        
-        # Debug - eliminar este código al finalizar el debug
-
-        print("📦 Datos recibidos para guardar respuestas:") #Debug
-        for item in responses_data:
-            print(item)
-        
-        # try:
-        #     serializer = ResponseSerializer(data=responses_data, many=True, context={'request': request})
-        #     serializer.is_valid(raise_exception=True)
-        #     serializer.save()
-        #     return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
-        # except DRFValidationError as e:
-        #     print("❌ Error de validación en ResponseSerializer:")
-        #     print(e.detail)
-        #     return Response({"error": str(e.detail)}, status=400)
-        
         try:
             for item in responses_data:
                 item["survey_attempt"] = survey_attempt.id
@@ -558,8 +533,6 @@ class SubmitResponseView(APIView):
             serializer.save()
             return Response({"message": "Respuestas guardadas exitosamente."}, status=201)
         except DRFValidationError as e:
-            print("❌ Error de validación en ResponseSerializer:")  # Debug
-            print(e.detail) # Debug
             return Response({"error": str(e.detail)}, status=400)
 
 
