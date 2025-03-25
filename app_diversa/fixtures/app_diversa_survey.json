@@ -1,0 +1,29 @@
+[
+	{
+		"id" : 1,
+		"name" : "ENCUESTA DE DISCRIMINACIÓN",
+		"description_name" : "Definición de \"discriminación\": “Distinción, exclusión, restricción, tratamiento ilegal o preferencia que basada en la raza, el color, la edad, el sexo, la orientación sexual, el idioma, la religión, la opinión o por su origen nacional o étnico, desalienta o impide la igualdad de reconocimiento, el goce y el ejercicio de los derechos humanos y las libertades fundamentales en las esferas política, económica, social y cultural o en cualquier otro ámbito de la vida pública.” DANE, 2021.",
+		"title" : "Encuesta I - Discriminación",
+		"description_title" : "Preguntas para la recolección de información relevante sobre las experiencias de discriminación en personas residentes en Colombia y mayores de edad.",
+		"created_at" : "2024-11-28 22:28:02.218472",
+		"updated_at" : "2024-12-05 20:19:18.777044"
+	},
+	{
+		"id" : 2,
+		"name" : "ENCUESTA DE SERVICIOS PÚBLICOS",
+		"description_name" : "None",
+		"title" : "Encuesta II - Servicios Públicos",
+		"description_title" : "Preguntas relacionadas con la percepción del acceso y prestación de servicios.",
+		"created_at" : "2024-12-01 17:12:58.829759",
+		"updated_at" : "2024-12-05 20:19:18.777044"
+	},
+	{
+		"id" : 3,
+		"name" : "ENCUESTA DE VIOLENCIA DE GÉNERO",
+		"description_name" : "None",
+		"title" : "ENCUESTA III - VIOLENCIA DE GÉNERO",
+		"description_title" : "Preguntas sobre violencia de género.",
+		"created_at" : "2024-12-01 17:12:58.829759",
+		"updated_at" : "2025-02-05 22:55:28.571592"
+	}
+]

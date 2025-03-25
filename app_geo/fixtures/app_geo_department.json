@@ -1,0 +1,200 @@
+[
+	{
+		"id" : 1,
+		"code" : 5,
+		"name" : "ANTIOQUIA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 2,
+		"code" : 8,
+		"name" : "ATLÁNTICO",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 3,
+		"code" : 11,
+		"name" : "BOGOTÁ, D.C.",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 4,
+		"code" : 13,
+		"name" : "BOLÍVAR",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 5,
+		"code" : 15,
+		"name" : "BOYACÁ",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 6,
+		"code" : 17,
+		"name" : "CALDAS",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 7,
+		"code" : 18,
+		"name" : "CAQUETÁ",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 8,
+		"code" : 19,
+		"name" : "CAUCA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 9,
+		"code" : 20,
+		"name" : "CESAR",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 10,
+		"code" : 23,
+		"name" : "CÓRDOBA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 11,
+		"code" : 25,
+		"name" : "CUNDINAMARCA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 12,
+		"code" : 27,
+		"name" : "CHOCÓ",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 13,
+		"code" : 41,
+		"name" : "HUILA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 14,
+		"code" : 44,
+		"name" : "LA GUAJIRA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 15,
+		"code" : 47,
+		"name" : "MAGDALENA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 16,
+		"code" : 50,
+		"name" : "META",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 17,
+		"code" : 52,
+		"name" : "NARIÑO",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 18,
+		"code" : 54,
+		"name" : "NORTE DE SANTANDER",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 19,
+		"code" : 63,
+		"name" : "QUINDÍO",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 20,
+		"code" : 66,
+		"name" : "RISARALDA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 21,
+		"code" : 68,
+		"name" : "SANTANDER",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 22,
+		"code" : 70,
+		"name" : "SUCRE",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 23,
+		"code" : 73,
+		"name" : "TOLIMA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 24,
+		"code" : 76,
+		"name" : "VALLE DEL CAUCA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 25,
+		"code" : 81,
+		"name" : "ARAUCA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 26,
+		"code" : 85,
+		"name" : "CASANARE",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 27,
+		"code" : 86,
+		"name" : "PUTUMAYO",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 28,
+		"code" : 88,
+		"name" : "ARCHIPIÉLAGO DE SAN ANDRÉS, PROVIDENCIA Y SANTA CATALINA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 29,
+		"code" : 91,
+		"name" : "AMAZONAS",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 30,
+		"code" : 94,
+		"name" : "GUAINÍA",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 31,
+		"code" : 95,
+		"name" : "GUAVIARE",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 32,
+		"code" : 97,
+		"name" : "VAUPÉS",
+		"country_numeric_code" : 170
+	},
+	{
+		"id" : 33,
+		"code" : 99,
+		"name" : "VICHADA",
+		"country_numeric_code" : 170
+	}
+]

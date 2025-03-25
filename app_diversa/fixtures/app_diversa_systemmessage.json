@@ -1,0 +1,30 @@
+[
+	{
+		"id" : 1,
+		"key" : "rejection_no_colombia",
+		"title" : "No puede continuar",
+		"content" : "<p style=\"text-align: justify;\">\r\n  Agradecemos su interés en participar en esta encuesta, sin embargo, hemos notado que no cumple con el perfil, ya que la encuesta está dirigida a personas que residan en Colombia en los últimos 5 años.\r\n</p>\r\n<br>\r\n<p style=\"text-align: justify;\">\r\n  Le invitamos a participar en futuras encuestas que puedan ser de su interés.\r\n</p>\r\n<br>\r\n<p><strong>Gracias por su comprensión.</strong></p>",
+		"is_active" : 1
+	},
+	{
+		"id" : 2,
+		"key" : "rejection_underage",
+		"title" : "No puede continuar",
+		"content" : "<p style=\"text-align: justify;\">\r\n  Agradecemos su interés en participar en esta encuesta, sin embargo, hemos notado que no cumple con el perfil, ya que la encuesta está dirigida a personas mayores de 18 años que residan en Colombia en los últimos 5 años.\r\n</p>\r\n<br>\r\n<p style=\"text-align: justify;\">\r\n  Le invitamos a participar en futuras encuestas que puedan ser de su interés.\r\n</p>\r\n<br>\r\n<p><strong>Gracias por su comprensión.</strong></p>",
+		"is_active" : 1
+	},
+	{
+		"id" : 3,
+		"key" : "welcome_message",
+		"title" : "Bienvenido/a AppDiversa",
+		"content" : "<br />\r\n<p>\r\n  Desde el DANE queremos darle las gracias por tomarse el tiempo de participar. Sus respuestas son muy valiosas para nosotros, ya que nos ayudarán a entender mejor las realidades que viven las personas en relación con la discriminación en diferentes ámbitos. Esta información será clave para promover cambios y políticas que favorezcan la inclusión y el respeto.\r\n</p>\r\n<p>\r\n  Recuerde que todas sus respuestas son anónimas y tratadas de acuerdo con la política de tratamiento y protección de datos personales (Res.0379/2022).\r\n</p>",
+		"is_active" : 1
+	},
+	{
+		"id" : 4,
+		"key" : "thank_you_message",
+		"title" : "¡Gracias por hacer parte de AppDiversa!",
+		"content" : "<p style=\"text-align: justify;\">\r\n  Su participación es fundamental para generar un impacto positivo en la lucha contra la discriminación.\r\n  Con sus respuestas, podremos identificar los desafíos que enfrentan diferentes grupos y trabajar en soluciones que hagan de nuestra sociedad un lugar más justo e inclusivo para todos.\r\n</p>\r\n<br>\r\n<p style=\"text-align: justify;\">\r\n  Si tiene algún comentario adicional o quiere seguir siendo parte de esta iniciativa, no dude en contactarnos al correo <strong>sen@dane.gov.co</strong>\r\n</p>",
+		"is_active" : 1
+	}
+]
