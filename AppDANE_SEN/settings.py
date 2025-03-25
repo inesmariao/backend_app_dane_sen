@@ -139,9 +139,10 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Directorios adicionales donde Django buscará archivos estáticos
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'AppDANE_SEN', 'static')
-]
+# Para el despliegue en Render no lo necesito
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, 'AppDANE_SEN', 'static')
+# ]
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
