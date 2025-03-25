@@ -1,0 +1,1 @@
+web: gunicorn AppDANE_SEN.wsgi:application
