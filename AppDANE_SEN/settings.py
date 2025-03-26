@@ -87,7 +87,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://app-diversa.vercel.app/",
+    "https://app-diversa.vercel.app",
     "http://localhost:3000",
     "http://192.168.20.121:3000",
 ]
