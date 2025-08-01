@@ -86,16 +86,16 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
-# CORS_ALLOWED_ORIGINS = [
-#     "https://app-diversa.vercel.app",
-#     "http://localhost:3000",
-#     "http://192.168.20.121:3000",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "https://app-diversa.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000"
+]
 
 
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = False # No se necesita para JWT en headers
 
 CORS_ALLOW_HEADERS = [
     'content-type',
